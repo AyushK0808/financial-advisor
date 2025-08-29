@@ -1,0 +1,22 @@
+[
+    {
+        "input": "What is the difference between SIP and lump sum investment?",
+        "output": "SIP (Systematic Investment Plan) involves investing a fixed amount regularly, while lump sum is investing a large amount at once. SIP benefits: rupee cost averaging, disciplined investing, less market timing risk. Lump sum benefits: potentially higher returns in rising markets, immediate full investment. For beginners, SIP is recommended as it reduces volatility impact and builds investment discipline."
+    },
+    {
+        "input": "How to choose between ELSS and PPF for tax saving?",
+        "output": "ELSS vs PPF comparison: ELSS has 3-year lock-in vs PPF's 15-year lock-in. ELSS offers potential higher returns (10-15% historically) but with market risk, while PPF gives fixed returns (7-8%) with no risk. ELSS qualifies for Section 80C and provides liquidity after 3 years. PPF offers triple tax benefit. Choose ELSS for growth and shorter commitment, PPF for safety and long-term wealth creation."
+    },
+    {
+        "input": "What are the key ratios to analyze before buying a stock?",
+        "output": "Key financial ratios for stock analysis: 1) P/E Ratio - Compare with industry average, lower may indicate undervaluation. 2) Debt-to-Equity - Lower is better, <0.5 preferred. 3) ROE - Higher indicates efficient use of shareholder money, >15% good. 4) Current Ratio - >1.5 shows good liquidity. 5) Price-to-Book - <1 may indicate undervaluation. 6) Revenue Growth - Consistent growth preferred. Always compare with industry peers and analyze trends over 3-5 years."
+    },
+    {
+        "input": "How to build an emergency fund?",
+        "output": "Emergency fund should be 6-12 months of monthly expenses. Keep it in highly liquid investments: savings account (instant access), liquid funds (1-2 days), or short-term FDs. Don't invest emergency funds in equity or volatile instruments. Start with 1 month expenses, gradually build to 6 months. Automate monthly transfers. Only use for genuine emergencies like job loss, medical expenses, or major repairs. Replenish immediately after use."
+    },
+    {
+        "input": "What is rupee cost averaging in SIP?",
+        "output": "Rupee cost averaging is the key benefit of SIP investing. When market prices are high, your fixed SIP amount buys fewer units. When prices are low, the same amount buys more units. Over time, this averages out your purchase cost, reducing the impact of market volatility. Example: Rs.1000 SIP - Month 1: NAV Rs.10, get 100 units. Month 2: NAV Rs.8, get 125 units. Month 3: NAV Rs.12, get 83 units. Average cost: Rs.9.6 vs average NAV Rs.10."
+    }
+]

@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment files
+.env
+.env.local
+.env.development
+.venv
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite3
+
+# Model files
+models/
+*.bin
+*.safetensors
+*.h5
+*.ckpt
+*.pth
+*.pt
+
+# Vector store data
+vector_store/chromadb/
+*.faiss
+*.index
+
+# Data files
+data/user_data/
+*.csv
+*.parquet
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints
+
+# Testing
+.pytest_cache/
+.coverage
+
+# ChromaDB
+chroma.sqlite3
+chroma-*.parquet
+
+# Hugging Face cache
+.cache/huggingface/
+transformers_cache/
+
+# NLTK data
+nltk_data/

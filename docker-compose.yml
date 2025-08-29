@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7-jammy
+    container_name: financial-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  # ChromaDB
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: financial-chromadb
+    ports:
+      - "8000:8000"
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+    volumes:
+      - chromadb_data:/chroma/chroma
+    restart: unless-stopped
+
+  # SearXNG (for web search)
+  searxng:
+    image: searxng/searxng:latest
+    container_name: financial-searxng
+    ports:
+      - "8888:8080"
+    restart: unless-stopped
+
+  # Streamlit App
+  financial-app:
+    build: .
+    container_name: financial-streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - CHROMADB_HOST=chromadb
+      - SEARXNG_URL=http://searxng:8080
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./vector_store:/app/vector_store
+    depends_on:
+      - mongodb
+      - chromadb
+      - searxng
+    restart: unless-stopped
+    command: streamlit run src/streamlit_app.py --server.address 0.0.0.0
+
+volumes:
+  mongodb_data:
+  chromadb_data:
