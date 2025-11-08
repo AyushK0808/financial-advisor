@@ -35,7 +35,7 @@ NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL")
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL")
 DATABASE_FILE = "analysis_archive.db"
-MAX_CONTEXT_LENGTH = 8000  # Characters
+MAX_CONTEXT_LENGTH = 5000  # Characters
 MIN_NEWS_ARTICLES = 3
 
 # --- PYDANTIC MODELS FOR STRUCTURED OUTPUT ---
@@ -329,6 +329,8 @@ class OllamaLLM(LLM):
     base_url: str=""
     temperature: float = 0.3
     top_p: float = 0.9
+    timeout: int = 300  # Increased to 5 minutes
+    max_tokens: int = 2048  # Limit output length
     
     class Config:
         """Pydantic configuration"""
@@ -362,7 +364,7 @@ class OllamaLLM(LLM):
                         "top_p": self.top_p
                     }
                 },
-                timeout=120
+                timeout=300
             )
             response.raise_for_status()
             result = response.json()
