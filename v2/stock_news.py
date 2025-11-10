@@ -429,9 +429,17 @@ CRITICAL INSTRUCTIONS:
         if examples:
             template_str += "\n\nHere are examples of good analyses:\n"
             for i, (ex_context, ex_analysis) in enumerate(examples, 1):
+                
+                # --- START FIX ---
+                # Escape braces in the example data so PromptTemplate ignores them
+                safe_context = ex_context.replace("{", "{{").replace("}", "}}")
+                safe_analysis = ex_analysis.replace("{", "{{").replace("}", "}}")
+                # --- END FIX ---
+
                 template_str += f"\n--- EXAMPLE {i} ---\n"
-                template_str += f"News Context:\n{ex_context[:500]}...\n\n"
-                template_str += f"Analysis:\n{ex_analysis[:500]}...\n"
+                # Use the "safe" strings instead of the raw ones
+                template_str += f"News Context:\n{safe_context[:500]}...\n\n"
+                template_str += f"Analysis:\n{safe_analysis[:500]}...\n"
         
         # Add the current task
         template_str += "\n\n--- YOUR TASK ---\nNews Context:\n{news_context}\n\nAnalysis:"
