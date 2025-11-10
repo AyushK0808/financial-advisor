@@ -4,7 +4,6 @@ import yfinance as yf
 from thefuzz import process as fuzzy_process
 import ollama  # Added for local Llama 3.2
 
-# --- Setup: Load spaCy Model ---
 try:
     nlp = spacy.load("en_core_web_sm")
 except IOError:
