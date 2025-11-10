@@ -212,27 +212,27 @@ def process_query_robust(query):
     print(f"Routing: Random")
     print(f"Action: I am a financial advisor and this is out of my scope")
 
+if __name__ == "__main__":
+    print("### Robust Script Examples (DEBUGGED) ###")
 
-# --- Example Usage for Robust Script (All Examples) ---
-print("### Robust Script Examples (DEBUGGED) ###")
+    print("\n--- Example 1: Stock Comparison (Tickers) ---")
+    process_query_robust("What's better, AAPL vs MSFT?")
 
-print("\n--- Example 1: Stock Comparison (Tickers) ---")
-process_query_robust("What's better, AAPL vs MSFT?")
+    print("\n--- Example 2: Stock Comparison (Names) ---")
+    process_query_robust("Compare Google or Apple")
 
-print("\n--- Example 2: Stock Comparison (Names) ---")
-process_query_robust("Compare Google or Apple")
+    print("\n--- Example 3: Stock Comparison (Fuzzy + Typo) ---")
+    process_query_robust("Compare Gogle or Miccrosoft") # Note the typos
 
-print("\n--- Example 3: Stock Comparison (Fuzzy + Typo) ---")
-process_query_robust("Compare Gogle or Miccrosoft") # Note the typos
+    print("\n--- Example 4: Stock Comparison (Mixed) ---")
+    process_query_robust("Is NVDA a better buy than Intel?")
 
-print("\n--- Example 4: Stock Comparison (Mixed) ---")
-process_query_robust("Is NVDA a better buy than Intel?")
+    print("\n--- Example 5: General Financial (Economy) ---")
+    process_query_robust("What is the outlook for inflation in 2025?")
 
-print("\n--- Example 5: General Financial (Economy) ---")
-process_query_robust("What is the outlook for inflation in 2025?")
+    print("\n--- Example 6: General Financial (Markets) ---")
+    process_query_robust("How is the stock market doing?")
 
-print("\n--- Example 6: General Financial (Markets) ---")
-process_query_robust("How is the stock market doing?")
-
-print("\n--- Example 7: Random Query ---")
-process_query_robust("What's the weather like today?")
+    print("\n--- Example 7: Random Query ---")
+    process_query_robust("What's the weather like today?")
+    # --- Example Usage for Robust Script (All Examples) ---
