@@ -16,3 +16,5 @@ tenacity
 ollama
 pydantic
 simplejson
+langchain_ollama
+streamlit

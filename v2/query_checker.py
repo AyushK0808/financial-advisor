@@ -3,6 +3,9 @@ import spacy
 import yfinance as yf
 from thefuzz import process as fuzzy_process
 import ollama  # Added for local Llama 3.2
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 try:
     nlp = spacy.load("en_core_web_sm")
@@ -180,6 +183,51 @@ def clean_and_extract_companies(query):
 
     return list(set(found_tickers)) # Remove duplicates
 
+def get_llama_comparison_analysis(original_query):
+    """
+    Calls Llama 3.2 via LangChain with a specific prompt
+    to analyze a comparison query based on its own internal knowledge.
+    (Used for SCENARIO 1)
+    """
+    print("\n[--- CALLING OLLAMA (LangChain) FOR COMPARISON ANALYSIS ---]")
+    print(f"[--- Input Query: '{original_query}' ---]")
+
+    try:
+        # 1. Initialize the ChatOllama model
+        llm = ChatOllama(model="llama3.2")  # Assumes 'llama3.2' model
+
+        # 2. Create a specific prompt template for high-level comparison
+        prompt_template = """
+        You are an expert financial analyst. A user has asked the following comparison question:
+        "{query}"
+
+        Provide a comprehensive, high-level comparison answering the user's question.
+        Base this analysis on your general knowledge of these companies, their market positions,
+        recent performance trends, and future outlook.
+
+        Your Analysis:
+        """
+        
+        prompt = ChatPromptTemplate.from_template(prompt_template)
+
+        # 3. Create an output parser
+        output_parser = StrOutputParser()
+
+        # 4. Create the LangChain (LCEL) chain
+        chain = prompt | llm | output_parser
+
+        # 5. Invoke the chain
+        response = chain.invoke({
+            "query": original_query
+        })
+
+        print(f"Llama Analysis: {response}")
+        print("[--- END OF OLLAMA (LangChain) CALL ---]\n")
+        return response
+
+    except Exception as e:
+        print(f"Error calling Llama via LangChain: {e}")
+        return None
 def process_query_robust(query):
     """
     Processes a user query and routes it using robust NLP tools.
@@ -197,6 +245,7 @@ def process_query_robust(query):
         if companies:
             print(f"Action: Identified tickers: {companies}")
             get_stock_comparison(companies)
+            get_llama_comparison_analysis(query)
         else:
             print("Action: This is a comparison query, but no companies were identified.")
         return
