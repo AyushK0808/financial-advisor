@@ -389,7 +389,155 @@ def score_risk_metrics(sharpe, sortino, max_dd, volatility, beta, annual_return)
         reasons.append(f"✗ High beta: {beta:.2f} (volatile)")
     
     return min(score, 100), reasons
-
+def exec_stock_analysis(symbol):
+    results = {'symbol': symbol}
+    
+    try:
+        ticker = yf.Ticker(symbol)
+        data = ticker.history(period="1y")
+        
+        if data.empty or len(data) < 50:
+            return {
+                'status': 'error',
+                'symbol': symbol,
+                'message': 'Insufficient data for analysis'
+            }
+        
+        # Get market data for Beta calculation
+        try:
+            market = yf.Ticker("^GSPC").history(period="1y")
+            market_returns = market['Close'].pct_change().dropna()
+        except Exception:
+            market_returns = None
+            
+        # === CALCULATE ALL METRICS ===
+        
+        # Basic info
+        fundamentals = analyze_fundamentals(ticker)
+        results['info'] = {
+            'company_name': fundamentals.get('short_name', symbol),
+            'sector': fundamentals.get('sector', 'N/A'),
+            'industry': fundamentals.get('industry', 'N/A'),
+            'market_cap': fundamentals.get('market_cap')
+        }
+        
+        # Store raw fundamentals
+        results['fundamentals_data'] = fundamentals
+        
+        # Returns and price
+        current_price = data['Close'].iloc[-1]
+        start_price = data['Close'].iloc[0]
+        yearly_return = ((current_price - start_price) / start_price) * 100
+        
+        # Daily returns and volatility
+        daily_returns = data['Close'].pct_change().dropna()
+        volatility = daily_returns.std() * np.sqrt(252) * 100
+        
+        # Annual return
+        annual_return = (1 + daily_returns.mean()) ** 252 - 1
+        
+        results['price_and_return'] = {
+            'current_price': current_price,
+            '1_year_return_pct': yearly_return,
+            'annualized_return_pct': annual_return * 100
+        }
+        
+        # Moving averages
+        ma50 = data['Close'].rolling(50).mean().iloc[-1]
+        ma200 = data['Close'].rolling(200).mean().iloc[-1] if len(data) >= 200 else ma50
+        
+        # Technical indicators
+        rsi = calculate_rsi(data['Close'])
+        macd, signal = calculate_macd(data['Close'])
+        
+        results['technical_indicators'] = {
+            'rsi_14': rsi,
+            'macd': macd,
+            'macd_signal': signal,
+            'ma_50': ma50,
+            'ma_200': ma200
+        }
+        
+        # Risk metrics
+        sharpe = calculate_sharpe_ratio(daily_returns)
+        sortino = calculate_sortino_ratio(daily_returns)
+        max_dd = calculate_max_drawdown(data['Close'])
+        
+        # Beta
+        beta = 1.0  # Default
+        if market_returns is not None and len(daily_returns) == len(market_returns):
+            beta = calculate_beta(daily_returns.values, market_returns.values)
+        
+        results['risk_metrics'] = {
+            'volatility_annualized_pct': volatility,
+            'sharpe_ratio': sharpe,
+            'sortino_ratio': sortino,
+            'max_drawdown_pct': max_dd,
+            'beta': beta
+        }
+        
+        # === SCORING ===
+        
+        fund_score, fund_reasons = score_fundamentals(fundamentals)
+        tech_score, tech_reasons = score_technical_analysis(data, rsi, macd, signal, ma50, ma200)
+        risk_score, risk_reasons = score_risk_metrics(sharpe, sortino, max_dd, volatility, beta, annual_return)
+        
+        # Weighted final score
+        if fund_score == -1:
+            final_score = (tech_score * 0.55 + risk_score * 0.45)
+            weights_used = "Technical: 55%, Risk: 45% (Fundamentals unavailable)"
+        else:
+            final_score = (fund_score * 0.40 + tech_score * 0.35 + risk_score * 0.25)
+            weights_used = "Fundamentals: 40%, Technical: 35%, Risk: 25%"
+            
+        results['scores'] = {
+            'fundamental_score': fund_score,
+            'fundamental_reasons': fund_reasons,
+            'technical_score': tech_score,
+            'technical_reasons': tech_reasons,
+            'risk_score': risk_score,
+            'risk_reasons': risk_reasons,
+            'final_score': final_score,
+            'weights_used': weights_used
+        }
+        
+        # === INVESTMENT RECOMMENDATION ===
+        
+        if final_score >= 75:
+            recommendation_text = "STRONG BUY"
+            recommendation_desc = ("Excellent investment opportunity. Strong fundamentals, momentum, and "
+                                   "risk-adjusted returns. Shows strength across multiple metrics.")
+        elif final_score >= 60:
+            recommendation_text = "BUY"
+            recommendation_desc = ("Good investment candidate. Solid fundamentals or momentum with "
+                                   "favorable risk characteristics.")
+        elif final_score >= 45:
+            recommendation_text = "HOLD/MODERATE"
+            recommendation_desc = ("Mixed signals. Consider your risk tolerance and investment timeline. "
+                                   "May require further research or better entry timing.")
+        elif final_score >= 30:
+            recommendation_text = "CAUTION"
+            recommendation_desc = ("Significant concerns identified. High risk or poor value metrics. "
+                                   "Not recommended for conservative investors.")
+        else:
+            recommendation_text = "AVOID"
+            recommendation_desc = ("Poor investment characteristics. Weak fundamentals, negative momentum, "
+                                   "or unfavorable risk profile. Consider alternatives.")
+                                   
+        results['recommendation'] = {
+            'rating': recommendation_text,
+            'description': recommendation_desc
+        }
+        
+        results['status'] = 'success'
+        return results
+        
+    except Exception as e:
+        return {
+            'status': 'error',
+            'symbol': symbol,
+            'message': str(e)
+        }
 def compute_comprehensive_stock_analysis(symbol: str):
     """Comprehensive stock analysis combining all metrics."""
     print(f"\n{'='*75}")

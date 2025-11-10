@@ -589,7 +589,113 @@ class DisplayFormatter:
             logger.error(f"Display error: {e}")
             print("\n--- RAW ANALYSIS OUTPUT ---")
             print(analysis_json)
-
+class SaveFormatter:
+    @staticmethod
+    def format_as_dict(analysis_json: str, profile: CompanyProfile) -> dict:
+        try:
+            # Parse the core analysis data
+            analysis_data = json.loads(analysis_json)
+            
+            # Combine profile and analysis data into a structured dictionary
+            output_dict = {
+                "profile": {
+                    "name": profile.name,
+                    "ticker": profile.ticker,
+                    "sector": profile.sector,
+                    "industry": profile.industry
+                },
+                "analysis": analysis_data
+            }
+            return output_dict
+            
+        except Exception as e:
+            logger.error(f"Save format error: {e}")
+            # Return an error structure if parsing fails
+            return {
+                "error": "Failed to parse and format analysis",
+                "details": str(e),
+                "raw_json": analysis_json
+            }
+def orchestrator(ticker,countries,use_cache='y'):
+    # Validate environment
+    if not NEWS_API_KEY:
+        logger.error("NEWS_API_KEY not set")
+        sys.exit(1)
+    
+    # Initialize components
+    try:
+        db_manager = DatabaseManager(DATABASE_FILE)
+        analyzer = InvestmentAnalyzer(model_name=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
+        validator = AnalysisValidator()
+    except Exception as e:
+        logger.error(f"Initialization failed: {e}")
+        sys.exit(1)
+    
+    # Get user input
+    if not ticker:
+        print("No ticker provided. Exiting.")
+        sys.exit(1)
+    
+    # Check for recent analysis
+    if use_cache != 'n':
+        recent = db_manager.get_recent_analysis(ticker, days=7)
+        if recent:
+            profile = CompanyProfileFetcher.fetch_profile(ticker)
+            if profile:
+                res=SaveFormatter.format_as_dict(recent, profile)
+                return
+    
+    # Fetch company profile
+    profile = CompanyProfileFetcher.fetch_profile(ticker)
+    if not profile:
+        logger.error("Failed to fetch company profile")
+        sys.exit(1)
+    
+    # Get countries for macro analysis
+    
+    # Fetch news
+    news_fetcher = NewsFetcher(NEWS_API_KEY, db_manager)
+    news_sections = news_fetcher.fetch_comprehensive_news(profile, countries)
+    
+    # Build context
+    context = ""
+    for section_name, content in news_sections.items():
+        if content:
+            context += f"\n--- {section_name.upper()} NEWS ---\n{content}\n"
+    
+    if not context.strip():
+        logger.error("No news articles found")
+        sys.exit(1)
+    
+    # Get few-shot examples
+    examples = db_manager.get_few_shot_examples(n=2, min_quality_score=6.5)
+    
+    # Run analysis
+    try:
+        analysis_json, processing_time = analyzer.analyze(context, examples)
+        
+        # Validate
+        is_valid, metadata, error = validator.validate_analysis(analysis_json)
+        if not is_valid:
+            logger.error(f"Analysis validation failed: {error}")
+            print(f"\nValidation Error: {error}")
+            print("\n--- RAW OUTPUT ---")
+            print(analysis_json)
+            sys.exit(1)
+        
+        # Display results
+        res=SaveFormatter.format_as_dict(recent, profile)
+        
+        # Save to database
+        metadata['processing_time'] = processing_time
+        db_manager.save_analysis(ticker, analysis_json, context, OLLAMA_MODEL, metadata)
+        
+        logger.info("Analysis completed successfully")
+        return res
+        
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        sys.exit(1)
 # --- MAIN ORCHESTRATOR ---
 def main():
     print("\n" + "="*70)
