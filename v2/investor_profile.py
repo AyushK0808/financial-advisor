@@ -3,6 +3,157 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 import sys
+import sqlite3
+import json
+
+def init_database():
+    """Initialize SQLite database with investor profiles table."""
+    conn = sqlite3.connect('investor_profiles.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS investor_profiles (
+            user_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            portfolio JSON NOT NULL,
+            holding_periods JSON NOT NULL,
+            num_holdings INTEGER,
+            num_sectors INTEGER,
+            avg_volatility REAL,
+            avg_beta REAL,
+            investment_style TEXT,
+            risk_mgmt_score REAL,
+            diversification_score REAL,
+            performance_score REAL,
+            discipline_score REAL,
+            timing_score REAL,
+            overall_score REAL,
+            recommendations TEXT
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    print("✅ Database initialized")
+
+def save_investor_profile(user_id, name, portfolio, holding_periods, analysis_results):
+    """Save or update investor profile in database."""
+    conn = sqlite3.connect('investor_profiles.db')
+    cursor = conn.cursor()
+    
+    # Check if user exists
+    cursor.execute('SELECT user_id FROM investor_profiles WHERE user_id = ?', (user_id,))
+    exists = cursor.fetchone() is not None
+    
+    # Prepare data
+    data = {
+        'user_id': user_id,
+        'name': name,
+        'last_updated': datetime.now().isoformat(),
+        'portfolio': json.dumps(portfolio),
+        'holding_periods': json.dumps(holding_periods),
+        'num_holdings': analysis_results['num_holdings'],
+        'num_sectors': analysis_results['num_sectors'],
+        'avg_volatility': analysis_results['avg_volatility'],
+        'avg_beta': analysis_results['avg_beta'],
+        'investment_style': ', '.join(analysis_results['styles'][:3]),
+        'risk_mgmt_score': analysis_results['risk_mgmt_score'],
+        'diversification_score': analysis_results['div_score'],
+        'performance_score': analysis_results['perf_score'],
+        'discipline_score': analysis_results['discipline_score'],
+        'timing_score': analysis_results['timing_score'],
+        'overall_score': analysis_results['overall_score'],
+        'recommendations': json.dumps(analysis_results['recommendations'])
+    }
+    
+    if exists:
+        # Update existing record
+        cursor.execute('''
+            UPDATE investor_profiles
+            SET name = ?, last_updated = ?, portfolio = ?, holding_periods = ?,
+                num_holdings = ?, num_sectors = ?, avg_volatility = ?, avg_beta = ?,
+                investment_style = ?, risk_mgmt_score = ?, diversification_score = ?,
+                performance_score = ?, discipline_score = ?, timing_score = ?,
+                overall_score = ?, recommendations = ?
+            WHERE user_id = ?
+        ''', (
+            data['name'], data['last_updated'], data['portfolio'], data['holding_periods'],
+            data['num_holdings'], data['num_sectors'], data['avg_volatility'], data['avg_beta'],
+            data['investment_style'], data['risk_mgmt_score'], data['diversification_score'],
+            data['performance_score'], data['discipline_score'], data['timing_score'],
+            data['overall_score'], data['recommendations'], data['user_id']
+        ))
+        print(f"\n✅ Updated existing profile for {name} (ID: {user_id})")
+    else:
+        # Insert new record
+        cursor.execute('''
+            INSERT INTO investor_profiles (
+                user_id, name, last_updated, portfolio, holding_periods,
+                num_holdings, num_sectors, avg_volatility, avg_beta,
+                investment_style, risk_mgmt_score, diversification_score,
+                performance_score, discipline_score, timing_score,
+                overall_score, recommendations
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data['user_id'], data['name'], data['last_updated'], data['portfolio'],
+            data['holding_periods'], data['num_holdings'], data['num_sectors'],
+            data['avg_volatility'], data['avg_beta'], data['investment_style'],
+            data['risk_mgmt_score'], data['diversification_score'], data['performance_score'],
+            data['discipline_score'], data['timing_score'], data['overall_score'],
+            data['recommendations']
+        ))
+        print(f"\n✅ Created new profile for {name} (ID: {user_id})")
+    
+    conn.commit()
+    conn.close()
+
+def load_investor_profile(user_id):
+    """Load investor profile from database."""
+    conn = sqlite3.connect('investor_profiles.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM investor_profiles WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    
+    conn.close()
+    
+    if row:
+        columns = [desc[0] for desc in cursor.description]
+        profile = dict(zip(columns, row))
+        profile['portfolio'] = json.loads(profile['portfolio'])
+        profile['holding_periods'] = json.loads(profile['holding_periods'])
+        profile['recommendations'] = json.loads(profile['recommendations'])
+        return profile
+    return None
+
+def list_all_investors():
+    """List all investors in database."""
+    conn = sqlite3.connect('investor_profiles.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT user_id, name, last_updated, overall_score, investment_style
+        FROM investor_profiles
+        ORDER BY overall_score DESC
+    ''')
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    if rows:
+        print("\n" + "="*75)
+        print("📋 ALL INVESTOR PROFILES")
+        print("="*75)
+        print(f"{'ID':<15} {'Name':<20} {'Score':<10} {'Last Updated':<20}")
+        print("-"*75)
+        for row in rows:
+            user_id, name, last_updated, score, style = row
+            updated = datetime.fromisoformat(last_updated).strftime('%Y-%m-%d %H:%M')
+            print(f"{user_id:<15} {name:<20} {score:>6.1f}/100  {updated:<20}")
+        print("="*75)
+    else:
+        print("\n❌ No investor profiles found in database")
 
 def get_portfolio_input():
     """Get portfolio holdings from user."""
@@ -366,7 +517,7 @@ def score_investor_behavior(portfolio_data, weights, returns_list, score_details
     
     return behavior_scores
 
-def analyze_investor_profile(portfolio, holding_periods):
+def analyze_investor_profile(portfolio, holding_periods, user_id, name):
     """Main analysis function for investor profile."""
     print("\n" + "="*75)
     print("🔍 PERSONAL INVESTMENT PROFILE ANALYSIS")
@@ -401,10 +552,44 @@ def analyze_investor_profile(portfolio, holding_periods):
         discipline_score * 0.20
     )
     
+    # Collect recommendations
+    recommendations = []
+    if risk_mgmt_score < 60:
+        recommendations.append("Reduce portfolio volatility by adding more stable, blue-chip stocks")
+    if div_score < 60:
+        recommendations.append("Increase diversification - aim for 8-12+ stocks across 4+ sectors")
+    if perf_score < 60:
+        recommendations.append("Review your stock selection criteria - focus on quality companies")
+    if discipline_score < 60:
+        recommendations.append("Extend your holding periods - avoid excessive trading")
+    if score_details['market_correlation']['beta'] > 1.4:
+        recommendations.append("Consider adding defensive positions to reduce market sensitivity")
+    
+    # Prepare analysis results for database
+    analysis_results = {
+        'num_holdings': len(portfolio_data),
+        'num_sectors': score_details['diversification']['sectors'],
+        'avg_volatility': score_details['risk_tolerance']['volatility'],
+        'avg_beta': score_details['market_correlation']['beta'],
+        'styles': styles,
+        'risk_mgmt_score': risk_mgmt_score,
+        'div_score': div_score,
+        'perf_score': perf_score,
+        'timing_score': timing_score,
+        'discipline_score': discipline_score,
+        'overall_score': overall_score,
+        'recommendations': recommendations
+    }
+    
+    # Save to database
+    save_investor_profile(user_id, name, portfolio, holding_periods, analysis_results)
+    
     # Display results
     print("\n" + "="*75)
     print("👤 INVESTOR PROFILE")
     print("="*75)
+    print(f"Name: {name}")
+    print(f"ID: {user_id}")
     print(f"Investment Style: {', '.join(styles[:3])}")
     print(f"Number of Holdings: {len(portfolio_data)}")
     print(f"Sectors Represented: {score_details['diversification']['sectors']}")
@@ -430,3 +615,155 @@ def analyze_investor_profile(portfolio, holding_periods):
         print(f"  {reason}")
     
     print("\n" + "="*75)
+    print(f"⏱️  INVESTMENT DISCIPLINE SCORE: {discipline_score:.0f}/100")
+    print("="*75)
+    for reason in behavior_scores['discipline']['reasons']:
+        print(f"  {reason}")
+    
+    print("\n" + "="*75)
+    print(f"⭐ OVERALL INVESTOR SCORE: {overall_score:.1f}/100")
+    print("="*75)
+    print("Weighting: Risk Management 25%, Diversification 25%, Performance 20%,")
+    print("           Discipline 20%, Market Timing 10%")
+    
+    # Recommendations
+    print("\n" + "="*75)
+    print("💡 PERSONALIZED RECOMMENDATIONS")
+    print("="*75)
+    
+    if overall_score >= 80:
+        print("✅ EXCELLENT INVESTOR")
+        print("   You demonstrate strong investment principles with good risk management,")
+        print("   diversification, and discipline. Keep up the systematic approach!")
+    elif overall_score >= 65:
+        print("👍 GOOD INVESTOR")
+        print("   Solid investment approach with room for optimization in some areas.")
+    elif overall_score >= 50:
+        print("⚡ DEVELOPING INVESTOR")
+        print("   You're building good habits but could improve in several key areas.")
+    elif overall_score >= 35:
+        print("⚠️  NEEDS IMPROVEMENT")
+        print("   Significant gaps in your investment approach. Focus on fundamentals.")
+    else:
+        print("❌ HIGH RISK APPROACH")
+        print("   Your current strategy carries substantial risk. Consider reassessing")
+        print("   your approach and consulting with a financial advisor.")
+    
+    # Specific recommendations
+    if recommendations:
+        print("\n📋 Action Items:")
+        for rec in recommendations:
+            print(f"  • {rec}")
+    
+    print("\n" + "="*75)
+    print("⚠️  DISCLAIMER: This analysis is for educational purposes only and does")
+    print("   not constitute financial advice. Consult a qualified financial advisor.")
+    print("="*75 + "\n")
+
+if __name__ == "__main__":
+    try:
+        # Initialize database
+        init_database()
+        
+        print("="*75)
+        print("🎯 PERSONAL INVESTMENT PROFILE ANALYZER")
+        print("="*75)
+        print("This tool analyzes YOUR investment behavior and provides personalized")
+        print("recommendations based on how YOU invest in the stock market.")
+        print("\nOptions:")
+        print("  1. Create/Update your profile")
+        print("  2. View existing profile")
+        print("  3. List all profiles")
+        print("  4. Exit")
+        
+        choice = input("\nSelect option (1-4): ").strip()
+        
+        if choice == "3":
+            list_all_investors()
+            sys.exit(0)
+        elif choice == "4":
+            print("\nGoodbye!")
+            sys.exit(0)
+        elif choice == "2":
+            user_id = input("\nEnter your User ID: ").strip()
+            profile = load_investor_profile(user_id)
+            if profile:
+                print("\n" + "="*75)
+                print(f"👤 SAVED PROFILE: {profile['name']}")
+                print("="*75)
+                print(f"Last Updated: {datetime.fromisoformat(profile['last_updated']).strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"Investment Style: {profile['investment_style']}")
+                print(f"Holdings: {profile['num_holdings']} stocks across {profile['num_sectors']} sectors")
+                print(f"Average Volatility: {profile['avg_volatility']:.2f}%")
+                print(f"Average Beta: {profile['avg_beta']:.2f}")
+                print(f"\n⭐ Overall Score: {profile['overall_score']:.1f}/100")
+                print(f"   • Risk Management: {profile['risk_mgmt_score']:.0f}/100")
+                print(f"   • Diversification: {profile['diversification_score']:.0f}/100")
+                print(f"   • Performance: {profile['performance_score']:.0f}/100")
+                print(f"   • Discipline: {profile['discipline_score']:.0f}/100")
+                print("\n📋 Recommendations:")
+                for rec in profile['recommendations']:
+                    print(f"   • {rec}")
+                print("="*75)
+            else:
+                print(f"\n❌ No profile found for User ID: {user_id}")
+            sys.exit(0)
+        elif choice != "1":
+            print("\n❌ Invalid choice. Exiting.")
+            sys.exit(0)
+        
+        # Get user identification
+        print("\n" + "="*75)
+        print("👤 USER IDENTIFICATION")
+        print("="*75)
+        user_id = input("Enter your User ID (e.g., email or username): ").strip()
+        name = input("Enter your name: ").strip()
+        
+        if not user_id or not name:
+            print("\n❌ User ID and name are required. Exiting.")
+            sys.exit(0)
+        
+        # Check if profile exists
+        existing = load_investor_profile(user_id)
+        if existing:
+            print(f"\n✅ Found existing profile for {existing['name']}")
+            print(f"   Last updated: {datetime.fromisoformat(existing['last_updated']).strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"   Previous score: {existing['overall_score']:.1f}/100")
+            update = input("\nUpdate this profile? (yes/no): ").strip().lower()
+            if update != 'yes':
+                print("\nAnalysis cancelled. Exiting.")
+                sys.exit(0)
+        
+        portfolio = get_portfolio_input()
+        
+        if not portfolio:
+            print("\n❌ No portfolio entered. Exiting.")
+            sys.exit(0)
+        
+        print(f"\n✅ Portfolio entered: {len(portfolio)} holdings")
+        
+        # Get holding periods
+        print("\n" + "="*75)
+        print("📅 HOLDING PERIOD INPUT")
+        print("="*75)
+        print("How long have you held each position? (in days)")
+        print("If unsure, estimate or enter 365 for all\n")
+        
+        holding_periods = {}
+        for ticker in portfolio.keys():
+            while True:
+                try:
+                    days = input(f"Days held {ticker} (or press Enter for 365): ").strip()
+                    if days == "":
+                        holding_periods[ticker] = 365
+                        break
+                    holding_periods[ticker] = int(days)
+                    break
+                except ValueError:
+                    print("❌ Please enter a number")
+        
+        analyze_investor_profile(portfolio, holding_periods, user_id, name)
+        
+    except KeyboardInterrupt:
+        print("\n\nAnalysis cancelled. Exiting.")
+        sys.exit(0)
