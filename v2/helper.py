@@ -2,7 +2,6 @@ from stock_data import exec_stock_analysis
 from stock_news import orchestrator
 from investor_profile import load_investor_profile
 
-import sqlite3
 import json
 import requests
 from datetime import datetime
