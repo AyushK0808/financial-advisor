@@ -17,7 +17,15 @@ from investor_profile import (
     analyze_investor_profile,
     calculate_portfolio_metrics
 )
-
+from query_checker import (
+    process_query_robust,
+    clean_and_extract_companies,
+    get_llama_comparison_analysis,
+    call_llama_model,
+    COMPARISON_KEYWORDS,
+    FINANCIAL_KEYWORDS
+)
+import re
 # Page configuration
 st.set_page_config(
     page_title="Investment Analysis System",
@@ -29,40 +37,139 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    /* Main gradient background */
+    .stApp {
+        background: linear-gradient(135deg, #0a0e27 0%, #1a2332 25%, #0d3d3d 50%, #1a4d2e 75%, #0a0e27 100%);
+        background-attachment: fixed;
+    }
+    
+    /* Header styling */
     .main-header {
-        font-size: 2.5rem;
+        font-size: 3rem;
         font-weight: bold;
-        color: #1f77b4;
+        background: linear-gradient(90deg, #00d4ff 0%, #00ff88 50%, #00d4ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
-        padding: 1rem 0;
+        padding: 2rem 0;
+        text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
     }
+    
+    /* Metric cards with gradient */
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
+        background: linear-gradient(135deg, rgba(13, 61, 61, 0.6) 0%, rgba(26, 35, 50, 0.6) 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
         margin: 0.5rem 0;
+        border: 1px solid rgba(0, 255, 136, 0.2);
+        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.1);
     }
+    
+    /* Query input box */
+    .query-box {
+        background: linear-gradient(135deg, rgba(10, 14, 39, 0.8) 0%, rgba(13, 61, 61, 0.8) 100%);
+        padding: 2rem;
+        border-radius: 20px;
+        border: 2px solid rgba(0, 255, 136, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+        margin: 2rem 0;
+    }
+    
+    /* Recommendation boxes */
     .recommendation-box {
         padding: 1.5rem;
-        border-radius: 0.5rem;
+        border-radius: 15px;
         margin: 1rem 0;
         border-left: 5px solid;
+        background: linear-gradient(135deg, rgba(26, 35, 50, 0.6) 0%, rgba(13, 61, 61, 0.6) 100%);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
+    
     .strong-buy {
-        background-color: #d4edda;
-        border-color: #28a745;
+        border-color: #00ff88;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
     }
+    
     .buy {
-        background-color: #d1ecf1;
-        border-color: #17a2b8;
+        border-color: #00d4ff;
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
     }
+    
     .hold {
-        background-color: #fff3cd;
-        border-color: #ffc107;
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
     }
+    
     .sell {
-        background-color: #f8d7da;
-        border-color: #dc3545;
+        border-color: #ff4444;
+        box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0a0e27 0%, #1a2332 50%, #0d3d3d 100%);
+        border-right: 1px solid rgba(0, 255, 136, 0.2);
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(90deg, #00d4ff 0%, #00ff88 100%);
+        color: #0a0e27;
+        font-weight: bold;
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+    }
+    
+    /* Text colors */
+    h1, h2, h3, h4, h5, h6, p, span, div {
+        color: #ffffff;
+    }
+    
+    /* Input fields */
+    .stTextInput > div > div > input {
+        background: rgba(26, 35, 50, 0.6);
+        color: #e0e0e0;
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        border-radius: 10px;
+    }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        color: #00ff88 !important;
+        font-size: 1.8rem !important;
+    }
+    
+    /* Cards */
+    .feature-card {
+        background: linear-gradient(135deg, rgba(13, 61, 61, 0.4) 0%, rgba(26, 35, 50, 0.4) 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        border: 1px solid rgba(0, 255, 136, 0.2);
+        margin: 1rem 0;
+        transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        border-color: rgba(0, 255, 136, 0.5);
+    }
+    
+    /* Analysis result box */
+    .analysis-result {
+        background: linear-gradient(135deg, rgba(10, 14, 39, 0.9) 0%, rgba(13, 61, 61, 0.9) 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        border: 2px solid rgba(0, 255, 136, 0.3);
+        margin: 1rem 0;
+        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -72,6 +179,8 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = "Home"
 if 'user_profile' not in st.session_state:
     st.session_state.user_profile = None
+if 'query_history' not in st.session_state:
+    st.session_state.query_history = []
 
 # Initialize database
 init_database()
@@ -117,13 +226,115 @@ with st.sidebar:
 st.markdown('<div class="main-header">📊 Investment Analysis System</div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ==================== HOME PAGE ====================
+# ==================== HOME PAGE WITH QUERY CHECKER ====================
 if page == "🏠 Home":
-    st.header("Welcome to Your Investment Analysis Platform")
+    st.header("Welcome to Your AI-Powered Investment Platform")
     
+    # AI Query Box
+    st.markdown('<div class="query-box">', unsafe_allow_html=True)
+    st.markdown("### 🤖 Ask Me Anything About Investing")
+    
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_query = st.text_input(
+            "",
+            placeholder="e.g., 'Compare Apple vs Microsoft', 'What's the outlook for inflation?', 'Is NVDA better than Intel?'",
+            key="main_query",
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        analyze_query = st.button("🔍 Analyze", type="primary", use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Process query if submitted
+    if analyze_query and user_query:
+        with st.spinner("🤔 Analyzing your query..."):
+            query_lower = user_query.lower()
+            query_words = set(re.findall(r'\b\w+\b', query_lower))
+            
+            # Add to history
+            st.session_state.query_history.append({
+                'query': user_query,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
+            st.markdown('<div class="analysis-result">', unsafe_allow_html=True)
+            
+            # Scenario 1: Stock Comparison
+            if query_words.intersection(COMPARISON_KEYWORDS) and len(query_words) > 2:
+                st.success("📊 **Query Type:** Stock Comparison")
+                
+                companies = clean_and_extract_companies(user_query)
+                
+                if companies:
+                    st.info(f"**Identified Tickers:** {', '.join(companies)}")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("#### 📈 Quick Comparison")
+                        try:
+                            import yfinance as yf
+                            comparison_data = []
+                            for ticker in companies:
+                                t = yf.Ticker(ticker)
+                                info = t.info
+                                comparison_data.append({
+                                    'Ticker': ticker,
+                                    'Name': info.get('longName', 'N/A'),
+                                    'Price': f"${info.get('currentPrice', 0):.2f}",
+                                    'Market Cap': f"${info.get('marketCap', 0)/1e9:.2f}B",
+                                    'P/E Ratio': f"{info.get('trailingPE', 0):.2f}"
+                                })
+                            
+                            df = pd.DataFrame(comparison_data)
+                            st.dataframe(df, use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Error fetching comparison data: {e}")
+                    
+                    with col2:
+                        st.markdown("#### 🤖 AI Analysis")
+                        with st.spinner("Generating AI analysis..."):
+                            analysis = get_llama_comparison_analysis(user_query)
+                            if analysis:
+                                st.write(analysis)
+                            else:
+                                st.warning("AI analysis unavailable. Check Ollama connection.")
+                else:
+                    st.warning("Could not identify valid stock tickers from your query. Try using ticker symbols like AAPL, MSFT.")
+            
+            # Scenario 2: General Financial Query
+            elif query_words.intersection(FINANCIAL_KEYWORDS):
+                st.success("💰 **Query Type:** General Financial Question")
+                
+                with st.spinner("Getting AI insights..."):
+                    response = call_llama_model(user_query)
+                    if response:
+                        st.markdown("#### 🤖 AI Response")
+                        st.write(response)
+                    else:
+                        st.warning("AI response unavailable. Check Ollama connection.")
+            
+            # Scenario 3: Out of Scope
+            else:
+                st.info("ℹ️ **Query Type:** General Question")
+                st.write("I'm a financial advisor assistant. Your question seems to be outside my expertise area.")
+                st.write("Try asking about:")
+                st.write("- Stock comparisons (e.g., 'Compare AAPL vs MSFT')")
+                st.write("- Market analysis (e.g., 'How is the stock market doing?')")
+                st.write("- Economic outlook (e.g., 'What's the inflation forecast?')")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Feature Cards
     col1, col2, col3 = st.columns(3)
     
     with col1:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
         st.markdown("""
         ### 📈 Stock Analysis
         - Real-time stock data
@@ -131,11 +342,13 @@ if page == "🏠 Home":
         - Fundamental metrics
         - Risk analysis
         """)
-        if st.button("Go to Stock Analysis", key="nav_stock"):
+        if st.button("Go to Stock Analysis", key="nav_stock", use_container_width=True):
             st.session_state.current_page = "📈 Stock Analysis"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
         st.markdown("""
         ### 📰 News Analysis
         - Multi-source news aggregation
@@ -143,11 +356,13 @@ if page == "🏠 Home":
         - Sector & industry trends
         - Macroeconomic insights
         """)
-        if st.button("Go to News Analysis", key="nav_news"):
+        if st.button("Go to News Analysis", key="nav_news", use_container_width=True):
             st.session_state.current_page = "📰 News Analysis"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with col3:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
         st.markdown("""
         ### 🎯 Personalized Recommendations
         - Profile-based analysis
@@ -155,9 +370,18 @@ if page == "🏠 Home":
         - Portfolio optimization
         - Buy/Hold/Sell recommendations
         """)
-        if st.button("Go to Recommendations", key="nav_reco"):
+        if st.button("Go to Recommendations", key="nav_reco", use_container_width=True):
             st.session_state.current_page = "🎯 Personalized Recommendation"
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Query History
+    if st.session_state.query_history:
+        st.markdown("### 📜 Recent Queries")
+        for i, item in enumerate(reversed(st.session_state.query_history[-5:])):
+            st.text(f"🔹 {item['timestamp']}: {item['query']}")
     
     st.markdown("---")
     
@@ -166,7 +390,7 @@ if page == "🏠 Home":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Analyses Today", "0", "0%")
+        st.metric("Queries Today", len(st.session_state.query_history), "↑")
     with col2:
         st.metric("Active Profiles", "0", "0")
     with col3:
@@ -174,7 +398,7 @@ if page == "🏠 Home":
     with col4:
         st.metric("Success Rate", "0%", "0%")
 
-# ==================== STOCK ANALYSIS PAGE ====================
+#  ==================== STOCK ANALYSIS PAGE ====================
 elif page == "📈 Stock Analysis":
     st.header("📈 Comprehensive Stock Analysis")
     
@@ -562,8 +786,9 @@ elif page == "👤 Investor Profile":
             
             # Profile summary
             col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Overall Score", f"{profile['overall_score']:.1f}/100")
+            print(profile)
+            # with col1:
+            #     st.metric("Overall Score", f"{profile['overall_score']:.1f}/100")
             with col2:
                 st.metric("Holdings", profile['num_holdings'])
             with col3:
@@ -699,8 +924,8 @@ elif page == "🎯 Personalized Recommendation":
                             st.metric("Risk Tolerance", profile['risk_tolerance'].title())
                         with col3:
                             st.metric("Horizon", profile['investment_horizon'].replace('-', ' ').title())
-                        with col4:
-                            st.metric("Overall Score", f"{profile['overall_score']:.0f}/100")
+                        # with col4:
+                        #     st.metric("Overall Score", f"{profile['overall_score']:.0f}/100")
                         
                         st.markdown("---")
                         
@@ -1027,6 +1252,6 @@ st.markdown("""
 <div style='text-align: center; color: gray; padding: 2rem 0;'>
     <p>⚠️ <strong>Disclaimer:</strong> This tool is for educational and informational purposes only. 
     Not financial advice. Always consult with a qualified financial advisor before making investment decisions.</p>
-    <p>Powered by OpenAI, Ollama, Yahoo Finance & NewsAPI</p>
+    <p>Powered by Ollama, Yahoo Finance & NewsAPI</p>
 </div>
 """, unsafe_allow_html=True)
