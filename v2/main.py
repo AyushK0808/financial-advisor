@@ -1,566 +1,1257 @@
-#!/usr/bin/env python3
-"""
-Integrated Investment Analysis System
-Combines investor profiling, query processing, stock analysis, and personalized recommendations
-"""
-
-import sys
-import os
+import streamlit as st
+import pandas as pd
 import json
-import time
-from datetime import datetime
-from typing import List, Dict, Optional, Tuple
+import sys
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
+import plotly.express as px
 
-# Import functions from existing modules
-# Assuming all files are in the same directory
-try:
-    from investor_profile import (
-        analyze_investor_profile,
-        get_portfolio_input,
-        load_investor_profile,
-        list_all_investors,
-        init_database as init_profile_db
-    )
-    from query_checker import (
-        process_query_robust,
-        clean_and_extract_companies,
-        call_llama_model
-    )
-    from stock_data import (
-        find_ticker_from_text,
-        compute_comprehensive_stock_analysis
-    )
-    from stock_news import (
-        CompanyProfileFetcher,
-        NewsFetcher,
-        InvestmentAnalyzer,
-        DatabaseManager,
-        DisplayFormatter
-    )
-    import ollama
-except ImportError as e:
-    print(f"❌ Error importing required modules: {e}")
-    print("Please ensure all required files are in the same directory:")
-    print("  - investor_profile.py")
-    print("  - query_checker.py")
-    print("  - stock_data.py")
-    print("  - stock_news.py")
-    sys.exit(1)
+# Import your modules
+from helper import PersonalizedStockRecommendation
+from stock_data import exec_stock_analysis, find_ticker_from_text
+from stock_news import orchestrator
+from investor_profile import (
+    init_database, 
+    load_investor_profile, 
+    list_all_investors,
+    analyze_investor_profile,
+    calculate_portfolio_metrics
+)
+from query_checker import (
+    process_query_robust,
+    clean_and_extract_companies,
+    get_llama_comparison_analysis,
+    call_llama_model,
+    COMPARISON_KEYWORDS,
+    FINANCIAL_KEYWORDS
+)
+import re
+# Page configuration
+st.set_page_config(
+    page_title="Investment Analysis System",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Constants
-SEPARATOR = "=" * 80
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-
-
-class IntegratedAnalysisSystem:
-    """Main system orchestrator"""
+# Custom CSS
+st.markdown("""
+<style>
+    /* Main gradient background */
+    .stApp {
+        background: linear-gradient(135deg, #0a0e27 0%, #1a2332 25%, #0d3d3d 50%, #1a4d2e 75%, #0a0e27 100%);
+        background-attachment: fixed;
+    }
     
-    def __init__(self):
-        self.user_id = None
-        self.user_name = None
-        self.investor_profile = None
-        self.analysis_cache = {}
+    /* Header styling */
+    .main-header {
+        font-size: 3rem;
+        font-weight: bold;
+        background: linear-gradient(90deg, #00d4ff 0%, #00ff88 50%, #00d4ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        padding: 2rem 0;
+        text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+    }
+    
+    /* Metric cards with gradient */
+    .metric-card {
+        background: linear-gradient(135deg, rgba(13, 61, 61, 0.6) 0%, rgba(26, 35, 50, 0.6) 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 0.5rem 0;
+        border: 1px solid rgba(0, 255, 136, 0.2);
+        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.1);
+    }
+    
+    /* Query input box */
+    .query-box {
+        background: linear-gradient(135deg, rgba(10, 14, 39, 0.8) 0%, rgba(13, 61, 61, 0.8) 100%);
+        padding: 2rem;
+        border-radius: 20px;
+        border: 2px solid rgba(0, 255, 136, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+        margin: 2rem 0;
+    }
+    
+    /* Recommendation boxes */
+    .recommendation-box {
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 1rem 0;
+        border-left: 5px solid;
+        background: linear-gradient(135deg, rgba(26, 35, 50, 0.6) 0%, rgba(13, 61, 61, 0.6) 100%);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .strong-buy {
+        border-color: #00ff88;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+    
+    .buy {
+        border-color: #00d4ff;
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+    
+    .hold {
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    
+    .sell {
+        border-color: #ff4444;
+        box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0a0e27 0%, #1a2332 50%, #0d3d3d 100%);
+        border-right: 1px solid rgba(0, 255, 136, 0.2);
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(90deg, #00d4ff 0%, #00ff88 100%);
+        color: #0a0e27;
+        font-weight: bold;
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+    }
+    
+    /* Text colors */
+    h1, h2, h3, h4, h5, h6, p, span, div {
+        color: #ffffff;
+    }
+    
+    /* Input fields */
+    .stTextInput > div > div > input {
+        background: rgba(26, 35, 50, 0.6);
+        color: #e0e0e0;
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        border-radius: 10px;
+    }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        color: #00ff88 !important;
+        font-size: 1.8rem !important;
+    }
+    
+    /* Cards */
+    .feature-card {
+        background: linear-gradient(135deg, rgba(13, 61, 61, 0.4) 0%, rgba(26, 35, 50, 0.4) 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        border: 1px solid rgba(0, 255, 136, 0.2);
+        margin: 1rem 0;
+        transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        border-color: rgba(0, 255, 136, 0.5);
+    }
+    
+    /* Analysis result box */
+    .analysis-result {
+        background: linear-gradient(135deg, rgba(10, 14, 39, 0.9) 0%, rgba(13, 61, 61, 0.9) 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        border: 2px solid rgba(0, 255, 136, 0.3);
+        margin: 1rem 0;
+        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "Home"
+if 'user_profile' not in st.session_state:
+    st.session_state.user_profile = None
+if 'query_history' not in st.session_state:
+    st.session_state.query_history = []
+
+# Initialize database
+init_database()
+
+# Sidebar navigation
+with st.sidebar:
+    
+    page = st.radio(
+        "Navigation",
+        ["🏠 Home", "📈 Stock Analysis", "📰 News Analysis", "👤 Investor Profile", "🎯 Personalized Recommendation", "📊 Portfolio Dashboard"],
+        key="navigation"
+    )
+    
+    st.markdown("---")
+    st.markdown("### ⚙️ Settings")
+    
+    # Model settings
+    ollama_model = st.selectbox(
+        "Ollama Model",
+        ["llama3.2", "llama3", "mistral", "mixtral"],
+        index=0
+    )
+    
+    ollama_url = st.text_input(
+        "Ollama URL",
+        value="http://localhost:11434"
+    )
+    
+    st.markdown("---")
+    st.markdown("### ℹ️ About")
+    st.info("""
+    **Investment Analysis System**
+    
+    Comprehensive stock analysis powered by:
+    - Technical Analysis
+    - Fundamental Analysis
+    - News Sentiment
+    - Risk Metrics
+    - AI-Powered Recommendations
+    """)
+
+# Main content area
+st.markdown('<div class="main-header">📊 Investment Analysis System</div>', unsafe_allow_html=True)
+st.markdown("---")
+
+# ==================== HOME PAGE WITH QUERY CHECKER ====================
+if page == "🏠 Home":
+    st.header("Welcome to Your AI-Powered Investment Platform")
+    
+    # AI Query Box
+    st.markdown('<div class="query-box">', unsafe_allow_html=True)
+    st.markdown("### 🤖 Ask Me Anything About Investing")
+    
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_query = st.text_input(
+            "",
+            placeholder="e.g., 'Compare Apple vs Microsoft', 'What's the outlook for inflation?', 'Is NVDA better than Intel?'",
+            key="main_query",
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        analyze_query = st.button("🔍 Analyze", type="primary", use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Process query if submitted
+    if analyze_query and user_query:
+        with st.spinner("🤔 Analyzing your query..."):
+            query_lower = user_query.lower()
+            query_words = set(re.findall(r'\b\w+\b', query_lower))
+            
+            # Add to history
+            st.session_state.query_history.append({
+                'query': user_query,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
+            st.markdown('<div class="analysis-result">', unsafe_allow_html=True)
+            
+            # Scenario 1: Stock Comparison
+            if query_words.intersection(COMPARISON_KEYWORDS) and len(query_words) > 2:
+                st.success("📊 **Query Type:** Stock Comparison")
+                
+                companies = clean_and_extract_companies(user_query)
+                
+                if companies:
+                    st.info(f"**Identified Tickers:** {', '.join(companies)}")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("#### 📈 Quick Comparison")
+                        try:
+                            import yfinance as yf
+                            comparison_data = []
+                            for ticker in companies:
+                                t = yf.Ticker(ticker)
+                                info = t.info
+                                comparison_data.append({
+                                    'Ticker': ticker,
+                                    'Name': info.get('longName', 'N/A'),
+                                    'Price': f"${info.get('currentPrice', 0):.2f}",
+                                    'Market Cap': f"${info.get('marketCap', 0)/1e9:.2f}B",
+                                    'P/E Ratio': f"{info.get('trailingPE', 0):.2f}"
+                                })
+                            
+                            df = pd.DataFrame(comparison_data)
+                            st.dataframe(df, use_container_width=True)
+                        except Exception as e:
+                            st.error(f"Error fetching comparison data: {e}")
+                    
+                    with col2:
+                        st.markdown("#### 🤖 AI Analysis")
+                        with st.spinner("Generating AI analysis..."):
+                            analysis = get_llama_comparison_analysis(user_query)
+                            if analysis:
+                                st.write(analysis)
+                            else:
+                                st.warning("AI analysis unavailable. Check Ollama connection.")
+                else:
+                    st.warning("Could not identify valid stock tickers from your query. Try using ticker symbols like AAPL, MSFT.")
+            
+            # Scenario 2: General Financial Query
+            elif query_words.intersection(FINANCIAL_KEYWORDS):
+                st.success("💰 **Query Type:** General Financial Question")
+                
+                with st.spinner("Getting AI insights..."):
+                    response = call_llama_model(user_query)
+                    if response:
+                        st.markdown("#### 🤖 AI Response")
+                        st.write(response)
+                    else:
+                        st.warning("AI response unavailable. Check Ollama connection.")
+            
+            # Scenario 3: Out of Scope
+            else:
+                st.info("ℹ️ **Query Type:** General Question")
+                st.write("I'm a financial advisor assistant. Your question seems to be outside my expertise area.")
+                st.write("Try asking about:")
+                st.write("- Stock comparisons (e.g., 'Compare AAPL vs MSFT')")
+                st.write("- Market analysis (e.g., 'How is the stock market doing?')")
+                st.write("- Economic outlook (e.g., 'What's the inflation forecast?')")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Feature Cards
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+        st.markdown("""
+        ### 📈 Stock Analysis
+        - Real-time stock data
+        - Technical indicators (RSI, MACD, MA)
+        - Fundamental metrics
+        - Risk analysis
+        """)
+        if st.button("Go to Stock Analysis", key="nav_stock", use_container_width=True):
+            st.session_state.current_page = "📈 Stock Analysis"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+        st.markdown("""
+        ### 📰 News Analysis
+        - Multi-source news aggregation
+        - AI-powered sentiment analysis
+        - Sector & industry trends
+        - Macroeconomic insights
+        """)
+        if st.button("Go to News Analysis", key="nav_news", use_container_width=True):
+            st.session_state.current_page = "📰 News Analysis"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown('<div class="feature-card">', unsafe_allow_html=True)
+        st.markdown("""
+        ### 🎯 Personalized Recommendations
+        - Profile-based analysis
+        - Risk-aligned suggestions
+        - Portfolio optimization
+        - Buy/Hold/Sell recommendations
+        """)
+        if st.button("Go to Recommendations", key="nav_reco", use_container_width=True):
+            st.session_state.current_page = "🎯 Personalized Recommendation"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Query History
+    if st.session_state.query_history:
+        st.markdown("### 📜 Recent Queries")
+        for i, item in enumerate(reversed(st.session_state.query_history[-5:])):
+            st.text(f"🔹 {item['timestamp']}: {item['query']}")
+    
+    st.markdown("---")
+    
+    # Quick stats
+    st.subheader("📊 Quick Stats")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Queries Today", len(st.session_state.query_history), "↑")
+    with col2:
+        st.metric("Active Profiles", "0", "0")
+    with col3:
+        st.metric("Avg Score", "0.0", "0.0")
+    with col4:
+        st.metric("Success Rate", "0%", "0%")
+
+#  ==================== STOCK ANALYSIS PAGE ====================
+elif page == "📈 Stock Analysis":
+    st.header("📈 Comprehensive Stock Analysis")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        ticker_input = st.text_input(
+            "Enter Stock Ticker or Company Name",
+            placeholder="e.g., AAPL, Tesla, Microsoft"
+        )
+    
+    with col2:
+        search_button = st.button("🔍 Analyze Stock", type="primary", use_container_width=True)
+    
+    if search_button and ticker_input:
+        with st.spinner("Analyzing stock... This may take a moment..."):
+            # Find ticker if company name provided
+            if len(ticker_input) > 5 or not ticker_input.isupper():
+                ticker = find_ticker_from_text(ticker_input)
+                if not ticker:
+                    st.error("Could not find stock ticker. Please try exact ticker symbol.")
+                    st.stop()
+            else:
+                ticker = ticker_input.upper()
+            
+            # Perform analysis
+            result = exec_stock_analysis(ticker)
+            
+            if result.get('status') == 'error':
+                st.error(f"Analysis failed: {result.get('message')}")
+                st.stop()
+            
+            # Display results
+            st.success(f"Analysis completed for **{result['info']['company_name']}** ({ticker})")
+            
+            # Company Info
+            st.subheader("🏢 Company Information")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Sector", result['info']['sector'])
+            with col2:
+                st.metric("Industry", result['info']['industry'])
+            with col3:
+                market_cap = result['info'].get('market_cap', 0)
+                if market_cap > 1e12:
+                    cap_display = f"${market_cap/1e12:.2f}T"
+                elif market_cap > 1e9:
+                    cap_display = f"${market_cap/1e9:.2f}B"
+                else:
+                    cap_display = f"${market_cap/1e6:.2f}M"
+                st.metric("Market Cap", cap_display)
+            with col4:
+                st.metric("Current Price", f"${result['price_and_return']['current_price']:.2f}")
+            
+            st.markdown("---")
+            
+            # Price & Returns
+            st.subheader("💰 Price & Returns")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "Current Price",
+                    f"${result['price_and_return']['current_price']:.2f}"
+                )
+            with col2:
+                yearly_return = result['price_and_return']['1_year_return_pct']
+                st.metric(
+                    "1-Year Return",
+                    f"{yearly_return:.2f}%",
+                    delta=f"{yearly_return:.2f}%"
+                )
+            with col3:
+                annual_return = result['price_and_return']['annualized_return_pct']
+                st.metric(
+                    "Annualized Return",
+                    f"{annual_return:.2f}%",
+                    delta=f"{annual_return:.2f}%"
+                )
+            
+            st.markdown("---")
+            
+            # Scores Display
+            st.subheader("📊 Investment Scores")
+            
+            scores = result['scores']
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                fund_score = scores['fundamental_score'] if scores['fundamental_score'] != -1 else 0
+                st.metric("Fundamental", f"{fund_score:.0f}/100")
+            with col2:
+                st.metric("Technical", f"{scores['technical_score']:.0f}/100")
+            with col3:
+                st.metric("Risk", f"{scores['risk_score']:.0f}/100")
+            with col4:
+                st.metric("Overall", f"{scores['final_score']:.1f}/100")
+            
+            # Score visualization
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=['Fundamental', 'Technical', 'Risk', 'Overall'],
+                    y=[fund_score, scores['technical_score'], scores['risk_score'], scores['final_score']],
+                    marker_color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+                )
+            ])
+            fig.update_layout(
+                title="Score Breakdown",
+                yaxis_range=[0, 100],
+                height=300
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Technical Indicators
+            st.subheader("📉 Technical Indicators")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                tech = result['technical_indicators']
+                st.write("**Moving Averages**")
+                st.write(f"- 50-Day MA: ${tech['ma_50']:.2f}")
+                st.write(f"- 200-Day MA: ${tech['ma_200']:.2f}")
+                
+                st.write("\n**Momentum Indicators**")
+                st.write(f"- RSI (14): {tech['rsi_14']:.2f}")
+                st.write(f"- MACD: {tech['macd']:.4f}")
+                st.write(f"- MACD Signal: {tech['macd_signal']:.4f}")
+            
+            with col2:
+                risk = result['risk_metrics']
+                st.write("**Risk Metrics**")
+                st.write(f"- Volatility: {risk['volatility_annualized_pct']:.2f}%")
+                st.write(f"- Beta: {risk['beta']:.2f}")
+                st.write(f"- Sharpe Ratio: {risk['sharpe_ratio']:.2f}")
+                st.write(f"- Sortino Ratio: {risk['sortino_ratio']:.2f}")
+                st.write(f"- Max Drawdown: {risk['max_drawdown_pct']:.2f}%")
+            
+            st.markdown("---")
+            
+            # Recommendation
+            st.subheader("🎯 Investment Recommendation")
+            
+            rec = result['recommendation']
+            rec_class = {
+                'STRONG BUY': 'strong-buy',
+                'BUY': 'buy',
+                'HOLD/MODERATE': 'hold',
+                'CAUTION': 'sell',
+                'AVOID': 'sell'
+            }.get(rec['rating'], 'hold')
+            
+            st.markdown(f"""
+            <div class="recommendation-box {rec_class}">
+                <h3>{rec['rating']}</h3>
+                <p>{rec['description']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Detailed reasons
+            with st.expander("📋 Detailed Analysis"):
+                if scores['fundamental_score'] != -1:
+                    st.write("**Fundamental Analysis:**")
+                    for reason in scores['fundamental_reasons']:
+                        st.write(f"- {reason}")
+                
+                st.write("\n**Technical Analysis:**")
+                for reason in scores['technical_reasons']:
+                    st.write(f"- {reason}")
+                
+                st.write("\n**Risk Analysis:**")
+                for reason in scores['risk_reasons']:
+                    st.write(f"- {reason}")
+
+# ==================== NEWS ANALYSIS PAGE ====================
+elif page == "📰 News Analysis":
+    st.header("📰 News & Sentiment Analysis")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        ticker_input = st.text_input(
+            "Enter Stock Ticker",
+            placeholder="e.g., NVDA, TSLA"
+        )
+    
+    with col2:
+        use_cache = st.checkbox("Use Cached Analysis (if available)", value=True)
+    
+    countries_input = st.text_input(
+        "Enter Major Countries (comma-separated)",
+        placeholder="e.g., United States, China, India"
+    )
+    
+    analyze_button = st.button("🔍 Analyze News", type="primary", use_container_width=True)
+    
+    if analyze_button and ticker_input:
+        with st.spinner("Fetching and analyzing news... This may take 1-2 minutes..."):
+            ticker = ticker_input.upper()
+            countries = [c.strip() for c in countries_input.split(',')] if countries_input else []
+            cache_option = 'y' if use_cache else 'n'
+            
+            try:
+                result = orchestrator(ticker, countries, cache_option)
+                
+                if result and 'profile' in result:
+                    profile = result['profile']
+                    analysis = result['analysis']
+                    
+                    st.success(f"Analysis completed for **{profile['name']}** ({profile['ticker']})")
+                    
+                    # Company Info
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Company", profile['name'])
+                    with col2:
+                        st.metric("Sector", profile['sector'])
+                    with col3:
+                        st.metric("Industry", profile['industry'])
+                    
+                    st.markdown("---")
+                    
+                    # Factor Analysis
+                    st.subheader("📊 Investment Factor Analysis")
+                    
+                    factors = {
+                        'Company Performance': analysis.get('company_performance', {}),
+                        'Management & Governance': analysis.get('management_and_governance', {}),
+                        'Industry & Sector Health': analysis.get('industry_and_sector_health', {}),
+                        'Competitive Landscape': analysis.get('competitive_landscape', {}),
+                        'Regulatory Risk': analysis.get('regulatory_risk', {}),
+                        'Macroeconomic Exposure': analysis.get('macroeconomic_exposure', {}),
+                        'Overall Sentiment': analysis.get('overall_sentiment', {})
+                    }
+                    
+                    # Create score visualization
+                    factor_names = list(factors.keys())
+                    scores = [factors[f].get('score', 0) for f in factor_names]
+                    confidences = [factors[f].get('confidence', 'medium') for f in factor_names]
+                    
+                    fig = go.Figure(data=[
+                        go.Bar(
+                            x=factor_names,
+                            y=scores,
+                            text=scores,
+                            textposition='auto',
+                            marker_color=['#28a745' if s >= 7 else '#ffc107' if s >= 5 else '#dc3545' for s in scores]
+                        )
+                    ])
+                    fig.update_layout(
+                        title="Factor Scores (1-10 scale)",
+                        yaxis_range=[0, 10],
+                        height=400
+                    )
+                    fig.update_xaxes(tickangle=45)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Detailed factor analysis
+                    st.subheader("📋 Detailed Factor Analysis")
+                    
+                    for factor_name, factor_data in factors.items():
+                        with st.expander(f"**{factor_name}** - Score: {factor_data.get('score', 'N/A')}/10"):
+                            st.write(f"**Confidence:** {factor_data.get('confidence', 'N/A')}")
+                            st.write(f"**Analysis:** {factor_data.get('justification', 'No details available')}")
+                    
+                    st.markdown("---")
+                    
+                    # Risk Flags and Opportunities
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.subheader("⚠️ Key Risk Flags")
+                        risks = analysis.get('risk_flags', [])
+                        if risks:
+                            for i, risk in enumerate(risks, 1):
+                                st.warning(f"{i}. {risk}")
+                        else:
+                            st.info("No significant risk flags identified")
+                    
+                    with col2:
+                        st.subheader("✅ Key Opportunities")
+                        opps = analysis.get('opportunities', [])
+                        if opps:
+                            for i, opp in enumerate(opps, 1):
+                                st.success(f"{i}. {opp}")
+                        else:
+                            st.info("No significant opportunities identified")
+                
+                else:
+                    st.error("Analysis failed or returned invalid data")
+                    
+            except Exception as e:
+                st.error(f"Analysis error: {str(e)}")
+
+# ==================== INVESTOR PROFILE PAGE ====================
+elif page == "👤 Investor Profile":
+    st.header("👤 Investor Profile Management")
+    
+    tab1, tab2, tab3 = st.tabs(["Create/Update Profile", "View Profile", "All Profiles"])
+    
+    with tab1:
+        st.subheader("Create or Update Your Investor Profile")
         
-        # Initialize databases
-        print("🔧 Initializing system...")
-        init_profile_db()
-        if NEWS_API_KEY:
-            self.db_manager = DatabaseManager("analysis_archive.db")
+        user_id = st.text_input("User ID", placeholder="e.g., email or username")
+        name = st.text_input("Name", placeholder="Your full name")
+        
+        st.markdown("### Portfolio Holdings")
+        st.write("Enter your stock holdings and their percentage allocation:")
+        
+        # Dynamic portfolio input
+        if 'portfolio_items' not in st.session_state:
+            st.session_state.portfolio_items = [{'ticker': '', 'allocation': 0, 'days_held': 365}]
+        
+        portfolio = {}
+        holding_periods = {}
+        
+        for i, item in enumerate(st.session_state.portfolio_items):
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+            
+            with col1:
+                ticker = st.text_input(f"Ticker {i+1}", value=item['ticker'], key=f"ticker_{i}")
+            with col2:
+                allocation = st.number_input(f"Allocation % {i+1}", min_value=0.0, max_value=100.0, 
+                                            value=float(item['allocation']), key=f"alloc_{i}")
+            with col3:
+                days = st.number_input(f"Days Held {i+1}", min_value=1, value=item['days_held'], key=f"days_{i}")
+            with col4:
+                if st.button("❌", key=f"remove_{i}"):
+                    st.session_state.portfolio_items.pop(i)
+                    st.rerun()
+            
+            if ticker and allocation > 0:
+                portfolio[ticker.upper()] = allocation
+                holding_periods[ticker.upper()] = days
+        
+        if st.button("➕ Add Another Holding"):
+            st.session_state.portfolio_items.append({'ticker': '', 'allocation': 0, 'days_held': 365})
+            st.rerun()
+        
+        total_allocation = sum(portfolio.values())
+        if total_allocation > 0:
+            st.info(f"Total Allocation: {total_allocation:.1f}%")
+            if total_allocation > 100:
+                st.warning("Total allocation exceeds 100%. Will be normalized.")
+        
+        if st.button("📊 Analyze Profile", type="primary", use_container_width=True):
+            if not user_id or not name or not portfolio:
+                st.error("Please fill in all required fields and add at least one holding")
+            else:
+                with st.spinner("Analyzing your investment profile... This may take a moment..."):
+                    try:
+                        # Normalize portfolio if needed
+                        if total_allocation > 100:
+                            portfolio = {k: (v/total_allocation)*100 for k, v in portfolio.items()}
+                        
+                        analyze_investor_profile(portfolio, holding_periods, user_id, name)
+                        st.success("Profile analysis completed and saved!")
+                        
+                        # Load and display the profile
+                        profile = load_investor_profile(user_id)
+                        if profile:
+                            st.session_state.user_profile = profile
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Analysis failed: {str(e)}")
+    
+    with tab2:
+        st.subheader("View Existing Profile")
+        
+        user_id_view = st.text_input("Enter User ID to view", key="view_user_id")
+        
+        if st.button("Load Profile"):
+            profile = load_investor_profile(user_id_view)
+            if profile:
+                st.session_state.user_profile = profile
+            else:
+                st.error(f"No profile found for User ID: {user_id_view}")
+        
+        if st.session_state.user_profile:
+            profile = st.session_state.user_profile
+            
+            st.success(f"Profile loaded: **{profile['name']}**")
+            
+            # Profile summary
+            col1, col2, col3, col4 = st.columns(4)
+            print(profile)
+            # with col1:
+            #     st.metric("Overall Score", f"{profile['overall_score']:.1f}/100")
+            with col2:
+                st.metric("Holdings", profile['num_holdings'])
+            with col3:
+                st.metric("Sectors", profile['num_sectors'])
+            with col4:
+                st.metric("Avg Volatility", f"{profile['avg_volatility']:.1f}%")
+            
+            st.markdown("---")
+            
+            # Investment style
+            st.subheader("Investment Style")
+            st.write(f"**Style:** {profile['investment_style']}")
+            st.write(f"**Average Beta:** {profile['avg_beta']:.2f}")
+            
+            # Scores breakdown
+            st.subheader("Performance Scores")
+            
+            scores_data = {
+                'Category': ['Risk Management', 'Diversification', 'Performance', 'Discipline', 'Timing'],
+                'Score': [
+                    profile['risk_mgmt_score'],
+                    profile['diversification_score'],
+                    profile['performance_score'],
+                    profile['discipline_score'],
+                    profile['timing_score']
+                ]
+            }
+            
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=scores_data['Category'],
+                    y=scores_data['Score'],
+                    text=[f"{s:.0f}" for s in scores_data['Score']],
+                    textposition='auto',
+                    marker_color='#1f77b4'
+                )
+            ])
+            fig.update_layout(
+                title="Investor Scores Breakdown",
+                yaxis_range=[0, 100],
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Recommendations
+            st.subheader("💡 Personalized Recommendations")
+            recs = profile['recommendations']
+            if recs:
+                for i, rec in enumerate(recs, 1):
+                    st.info(f"{i}. {rec}")
+            else:
+                st.success("Great job! No major recommendations at this time.")
+            
+            # Portfolio details
+            st.subheader("📊 Portfolio Holdings")
+            portfolio_dict = profile['portfolio']
+            holding_periods_dict = profile['holding_periods']
+            
+            portfolio_df = pd.DataFrame({
+                'Ticker': list(portfolio_dict.keys()),
+                'Allocation (%)': list(portfolio_dict.values()),
+                'Days Held': [holding_periods_dict.get(t, 0) for t in portfolio_dict.keys()]
+            })
+            st.dataframe(portfolio_df, use_container_width=True)
+    
+    with tab3:
+        st.subheader("All Investor Profiles")
+        
+        if st.button("🔄 Refresh List"):
+            st.rerun()
+        
+        # This would need to be implemented in investor_profile.py
+        st.info("List of all investors in the database")
+        # list_all_investors() function would be called here
+
+# ==================== PERSONALIZED RECOMMENDATION PAGE ====================
+elif page == "🎯 Personalized Recommendation":
+    st.header("🎯 Personalized Stock Recommendation")
+    
+    st.write("Get AI-powered buy/sell/hold recommendations based on your investor profile")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        user_id = st.text_input("Your User ID", placeholder="e.g., your email or username")
+    
+    with col2:
+        ticker = st.text_input("Stock Ticker", placeholder="e.g., AAPL, TSLA")
+    
+    countries_input = st.text_input(
+        "Major Countries (optional, comma-separated)",
+        placeholder="e.g., United States, China"
+    )
+    
+    use_cache = st.checkbox("Use cached news analysis", value=True)
+    
+    if st.button("🎯 Get Recommendation", type="primary", use_container_width=True):
+        if not user_id or not ticker:
+            st.error("Please provide both User ID and Stock Ticker")
         else:
-            print("⚠️  NEWS_API_KEY not set - news analysis will be limited")
-            self.db_manager = None
-        
-        print("✅ System initialized\n")
+            with st.spinner("Analyzing... This may take 1-2 minutes..."):
+                try:
+                    countries = [c.strip() for c in countries_input.split(',')] if countries_input else []
+                    cache_option = 'y' if use_cache else 'n'
+                    
+                    # Initialize recommender
+                    recommender = PersonalizedStockRecommendation(
+                        ollama_model=ollama_model,
+                        ollama_base_url=ollama_url
+                    )
+                    
+                    # Get recommendation
+                    result = recommender.analyze_stock_for_investor(
+                        user_id=user_id,
+                        ticker=ticker.upper(),
+                        countries=countries,
+                        use_cache=cache_option
+                    )
+                    
+                    if result.get('status') == 'error':
+                        st.error(f"Error: {result.get('message')}")
+                    else:
+                        st.success("Recommendation generated successfully!")
+                        
+                        # Investor Profile Summary
+                        st.subheader("👤 Your Profile")
+                        profile = result['investor_profile']
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Name", profile['name'])
+                        with col2:
+                            st.metric("Risk Tolerance", profile['risk_tolerance'].title())
+                        with col3:
+                            st.metric("Horizon", profile['investment_horizon'].replace('-', ' ').title())
+                        # with col4:
+                        #     st.metric("Overall Score", f"{profile['overall_score']:.0f}/100")
+                        
+                        st.markdown("---")
+                        
+                        # Recommendation
+                        st.subheader("🎯 Recommendation")
+                        
+                        rec = result['recommendation']
+                        rec_class = {
+                            'STRONG BUY': 'strong-buy',
+                            'BUY': 'buy',
+                            'CONSIDER': 'hold',
+                            'HOLD': 'hold',
+                            'STRONG HOLD': 'buy',
+                            'CONSIDER SELLING': 'sell',
+                            'SELL': 'sell',
+                            'DO NOT BUY': 'sell'
+                        }.get(rec, 'hold')
+                        
+                        st.markdown(f"""
+                        <div class="recommendation-box {rec_class}">
+                            <h2>{rec}</h2>
+                            <p><strong>Action:</strong> {result['action']}</p>
+                            <p><strong>Confidence:</strong> {result['confidence']}</p>
+                            <p><strong>Score:</strong> {result['score']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Stock Summary
+                        st.subheader("📊 Stock Summary")
+                        stock_sum = result['stock_summary']
+                        
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Current Price", f"${stock_sum.get('current_price', 0):.2f}")
+                        with col2:
+                            st.metric("Volatility", f"{stock_sum.get('volatility', 0):.1f}%")
+                        with col3:
+                            st.metric("Beta", f"{stock_sum.get('beta', 0):.2f}")
+                        with col4:
+                            st.metric("Sharpe Ratio", f"{stock_sum.get('sharpe_ratio', 0):.2f}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Sector", stock_sum.get('sector', 'N/A'))
+                        with col2:
+                            st.metric("Overall Score", f"{stock_sum.get('overall_score', 0):.1f}/100")
+                        
+                        st.markdown("---")
+                        
+                        # Detailed Reasons
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if 'reasons_for' in result:
+                                st.subheader("✅ Reasons For")
+                                for reason in result['reasons_for']:
+                                    st.success(f"• {reason}")
+                            elif 'reasons_for_hold' in result:
+                                st.subheader("✅ Reasons to Hold")
+                                for reason in result['reasons_for_hold']:
+                                    st.success(f"• {reason}")
+                        
+                        with col2:
+                            if 'reasons_against' in result:
+                                st.subheader("⚠️ Reasons Against")
+                                for reason in result['reasons_against']:
+                                    st.warning(f"• {reason}")
+                            elif 'reasons_for_sell' in result:
+                                st.subheader("⚠️ Reasons to Sell")
+                                for reason in result['reasons_for_sell']:
+                                    st.warning(f"• {reason}")
+                        
+                        # Current Holding Info (if applicable)
+                        if result.get('current_holding'):
+                            st.markdown("---")
+                            st.subheader("💼 Your Current Position")
+                            
+                            holding = result['current_holding']
+                            col1, col2, col3, col4 = st.columns(4)
+                            
+                            with col1:
+                                st.metric("Shares", f"{holding['shares']}")
+                            with col2:
+                                st.metric("Purchase Price", f"${holding['purchase_price']:.2f}")
+                            with col3:
+                                return_pct = holding['return_pct']
+                                st.metric("Return", f"{return_pct:.2f}%", delta=f"{return_pct:.2f}%")
+                            with col4:
+                                gain_loss = holding['unrealized_gain_loss']
+                                st.metric("Gain/Loss", f"${gain_loss:,.2f}", 
+                                        delta=f"${gain_loss:,.2f}")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.metric("Position Value", f"${holding['position_value']:,.2f}")
+                            with col2:
+                                st.metric("Days Held", f"{holding['holding_period_days']}")
+                        
+                        # Position Size Suggestion (for new purchases)
+                        if result.get('suggested_position_size'):
+                            st.markdown("---")
+                            st.subheader("💡 Suggested Position Size")
+                            
+                            pos_size = result['suggested_position_size']
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.metric("Suggested Shares", pos_size['suggested_shares'])
+                            with col2:
+                                st.metric("Investment Amount", f"${pos_size['investment_amount']:,.2f}")
+                            with col3:
+                                st.metric("Portfolio %", f"{pos_size['portfolio_allocation_pct']:.2f}%")
+                            
+                            st.info(pos_size['note'])
+                        
+                        # LLM Analysis indicator
+                        if result.get('llm_analysis'):
+                            st.success("✨ Analysis powered by LLM reasoning")
+                        else:
+                            st.info("ℹ️ Analysis based on fallback logic (LLM unavailable)")
+                
+                except Exception as e:
+                    st.error(f"Recommendation failed: {str(e)}")
+                    import traceback
+                    with st.expander("Error Details"):
+                        st.code(traceback.format_exc())
+
+# ==================== PORTFOLIO DASHBOARD ====================
+elif page == "📊 Portfolio Dashboard":
+    st.header("📊 Portfolio Dashboard")
     
-    def display_menu(self):
-        """Display main menu"""
-        print(f"\n{SEPARATOR}")
-        print("🎯 INTEGRATED INVESTMENT ANALYSIS SYSTEM")
-        print(SEPARATOR)
-        print("1. Login / Create Profile")
-        print("2. View My Profile")
-        print("3. Update My Portfolio")
-        print("4. Ask Investment Question")
-        print("5. Analyze Stocks")
-        print("6. View All Profiles")
-        print("7. Exit")
-        print(SEPARATOR)
+    user_id = st.text_input("Enter User ID", placeholder="your-user-id")
     
-    def login_or_create_profile(self):
-        """Handle user login or profile creation"""
-        print(f"\n{SEPARATOR}")
-        print("👤 USER LOGIN / REGISTRATION")
-        print(SEPARATOR)
-        
-        user_id = input("Enter your User ID (email/username): ").strip()
-        if not user_id:
-            print("❌ User ID required")
-            return False
-        
-        # Try to load existing profile
+    if st.button("Load Dashboard"):
         profile = load_investor_profile(user_id)
         
-        if profile:
-            self.user_id = user_id
-            self.user_name = profile['name']
-            self.investor_profile = profile
-            print(f"\n✅ Welcome back, {self.user_name}!")
-            print(f"   Last updated: {datetime.fromisoformat(profile['last_updated']).strftime('%Y-%m-%d %H:%M')}")
-            print(f"   Overall Score: {profile['overall_score']:.1f}/100")
-            return True
+        if not profile:
+            st.error(f"No profile found for User ID: {user_id}")
         else:
-            # Create new profile
-            print(f"\n📝 No profile found for {user_id}. Let's create one!")
-            name = input("Enter your name: ").strip()
-            if not name:
-                print("❌ Name required")
-                return False
+            st.success(f"Dashboard loaded for **{profile['name']}**")
             
-            self.user_id = user_id
-            self.user_name = name
+            # Overview metrics
+            st.subheader("📈 Overview")
+            col1, col2, col3, col4, col5 = st.columns(5)
             
-            # Get portfolio and analyze
-            print("\n📊 Please enter your portfolio to create your investor profile:")
-            portfolio = get_portfolio_input()
+            with col1:
+                score = profile['overall_score']
+                st.metric("Overall Score", f"{score:.1f}/100", 
+                         delta=f"{'Good' if score >= 65 else 'Needs Work'}")
+            with col2:
+                st.metric("Holdings", profile['num_holdings'])
+            with col3:
+                st.metric("Sectors", profile['num_sectors'])
+            with col4:
+                st.metric("Avg Volatility", f"{profile['avg_volatility']:.1f}%")
+            with col5:
+                st.metric("Avg Beta", f"{profile['avg_beta']:.2f}")
             
-            if not portfolio:
-                print("❌ Portfolio required to create profile")
-                return False
+            st.markdown("---")
             
-            # Get holding periods
-            print(f"\n{SEPARATOR}")
-            print("📅 HOLDING PERIOD INPUT")
-            print(SEPARATOR)
-            holding_periods = {}
-            for ticker in portfolio.keys():
-                while True:
-                    try:
-                        days = input(f"Days held {ticker} (Enter for 365): ").strip()
-                        holding_periods[ticker] = 365 if days == "" else int(days)
-                        break
-                    except ValueError:
-                        print("❌ Please enter a number")
+            # Investment style and strategy
+            col1, col2 = st.columns(2)
             
-            # Analyze and create profile
-            analyze_investor_profile(portfolio, holding_periods, user_id, name)
-            
-            # Load the newly created profile
-            self.investor_profile = load_investor_profile(user_id)
-            return True
-    
-    def view_profile(self):
-        """Display current user profile"""
-        if not self.investor_profile:
-            print("\n❌ Please login first")
-            return
-        
-        p = self.investor_profile
-        print(f"\n{SEPARATOR}")
-        print(f"👤 YOUR INVESTOR PROFILE")
-        print(SEPARATOR)
-        print(f"Name: {p['name']}")
-        print(f"User ID: {p['user_id']}")
-        print(f"Last Updated: {datetime.fromisoformat(p['last_updated']).strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"\nInvestment Style: {p['investment_style']}")
-        print(f"Holdings: {p['num_holdings']} stocks across {p['num_sectors']} sectors")
-        print(f"Average Volatility: {p['avg_volatility']:.2f}%")
-        print(f"Average Beta: {p['avg_beta']:.2f}")
-        
-        print(f"\n📊 SCORES:")
-        print(f"   ⭐ Overall: {p['overall_score']:.1f}/100")
-        print(f"   • Risk Management: {p['risk_mgmt_score']:.0f}/100")
-        print(f"   • Diversification: {p['diversification_score']:.0f}/100")
-        print(f"   • Performance: {p['performance_score']:.0f}/100")
-        print(f"   • Discipline: {p['discipline_score']:.0f}/100")
-        
-        print(f"\n💡 RECOMMENDATIONS:")
-        for rec in p['recommendations']:
-            print(f"   • {rec}")
-        print(SEPARATOR)
-    
-    def update_portfolio(self):
-        """Update user portfolio"""
-        if not self.user_id:
-            print("\n❌ Please login first")
-            return
-        
-        print(f"\n{SEPARATOR}")
-        print("🔄 UPDATE PORTFOLIO")
-        print(SEPARATOR)
-        print("Enter your updated portfolio:")
-        
-        portfolio = get_portfolio_input()
-        if not portfolio:
-            print("❌ No portfolio entered")
-            return
-        
-        # Get holding periods
-        holding_periods = {}
-        for ticker in portfolio.keys():
-            while True:
-                try:
-                    days = input(f"Days held {ticker} (Enter for 365): ").strip()
-                    holding_periods[ticker] = 365 if days == "" else int(days)
-                    break
-                except ValueError:
-                    print("❌ Please enter a number")
-        
-        # Re-analyze
-        analyze_investor_profile(portfolio, holding_periods, self.user_id, self.user_name)
-        
-        # Reload profile
-        self.investor_profile = load_investor_profile(self.user_id)
-        print("\n✅ Profile updated successfully!")
-    
-    def process_query(self):
-        """Process investment query"""
-        if not self.investor_profile:
-            print("\n❌ Please login first to get personalized recommendations")
-            return
-        
-        print(f"\n{SEPARATOR}")
-        print("💬 ASK INVESTMENT QUESTION")
-        print(SEPARATOR)
-        print("Examples:")
-        print("  - Compare AAPL vs MSFT")
-        print("  - Is NVDA better than Intel?")
-        print("  - What is the outlook for inflation?")
-        print("  - Compare Google or Microsoft")
-        print(SEPARATOR)
-        
-        query = input("\nYour question: ").strip()
-        if not query:
-            print("❌ No query entered")
-            return
-        
-        print(f"\n🔍 Processing query: '{query}'")
-        print(f"{SEPARATOR}")
-        
-        # Extract companies/tickers
-        tickers = clean_and_extract_companies(query)
-        
-        if tickers and len(tickers) >= 2:
-            print(f"\n✅ Detected comparison query with tickers: {tickers}")
-            self.analyze_multiple_stocks(tickers, query)
-        elif tickers and len(tickers) == 1:
-            print(f"\n✅ Detected single stock query: {tickers[0]}")
-            self.analyze_single_stock(tickers[0])
-        else:
-            # General financial query - use Llama
-            print("\n📰 General financial query - consulting AI advisor...")
-            response = call_llama_model(query)
-            if response:
-                print(f"\n{SEPARATOR}")
-                print("🤖 AI ADVISOR RESPONSE")
-                print(SEPARATOR)
-                print(response)
-                print(SEPARATOR)
-    
-    def analyze_single_stock(self, ticker: str):
-        """Analyze a single stock"""
-        print(f"\n{SEPARATOR}")
-        print(f"📊 ANALYZING {ticker}")
-        print(SEPARATOR)
-        
-        # Run comprehensive stock analysis
-        compute_comprehensive_stock_analysis(ticker)
-        
-        # Run news analysis if available
-        if NEWS_API_KEY and self.db_manager:
-            self.run_news_analysis(ticker)
-        
-        # Generate personalized recommendation
-        self.generate_personalized_recommendation(ticker)
-    
-    def analyze_multiple_stocks(self, tickers: List[str], original_query: str):
-        """Analyze and compare multiple stocks"""
-        if not self.investor_profile:
-            print("\n❌ Please login first")
-            return
-        
-        print(f"\n{SEPARATOR}")
-        print(f"📊 COMPARATIVE ANALYSIS: {' vs '.join(tickers)}")
-        print(SEPARATOR)
-        
-        # Analyze each stock
-        stock_analyses = {}
-        
-        for ticker in tickers:
-            print(f"\n{'─'*80}")
-            print(f"Analyzing {ticker}...")
-            print(f"{'─'*80}")
-            
-            try:
-                # Store current stdout to capture analysis
-                from io import StringIO
-                import contextlib
+            with col1:
+                st.subheader("🎯 Investment Profile")
+                st.write(f"**Style:** {profile['investment_style']}")
+                st.write(f"**Last Updated:** {profile['last_updated'][:10]}")
                 
-                # Run stock data analysis
-                f = StringIO()
-                with contextlib.redirect_stdout(f):
-                    compute_comprehensive_stock_analysis(ticker)
-                stock_data_output = f.getvalue()
+                # Risk profile gauge
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=profile['risk_mgmt_score'],
+                    title={'text': "Risk Management"},
+                    gauge={
+                        'axis': {'range': [0, 100]},
+                        'bar': {'color': "darkblue"},
+                        'steps': [
+                            {'range': [0, 40], 'color': "lightgray"},
+                            {'range': [40, 70], 'color': "gray"},
+                            {'range': [70, 100], 'color': "lightgreen"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 4},
+                            'thickness': 0.75,
+                            'value': 90
+                        }
+                    }
+                ))
+                fig.update_layout(height=300)
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.subheader("📊 Score Breakdown")
                 
-                # Run news analysis if available
-                news_output = ""
-                if NEWS_API_KEY and self.db_manager:
-                    f = StringIO()
-                    with contextlib.redirect_stdout(f):
-                        self.run_news_analysis(ticker)
-                    news_output = f.getvalue()
-                
-                stock_analyses[ticker] = {
-                    'stock_data': stock_data_output,
-                    'news_analysis': news_output
-                }
-                
-            except Exception as e:
-                print(f"❌ Error analyzing {ticker}: {e}")
-                stock_analyses[ticker] = {
-                    'stock_data': f"Error: {e}",
-                    'news_analysis': ""
-                }
-        
-        # Generate comparative recommendation
-        self.generate_comparative_recommendation(tickers, stock_analyses, original_query)
-    
-    def run_news_analysis(self, ticker: str):
-        """Run news-based analysis for a stock"""
-        try:
-            print(f"\n📰 Fetching news analysis for {ticker}...")
-            
-            # Get company profile
-            profile = CompanyProfileFetcher.fetch_profile(ticker)
-            if not profile:
-                print("❌ Could not fetch company profile")
-                return
-            
-            # Check for cached analysis
-            recent = self.db_manager.get_recent_analysis(ticker, days=7)
-            if recent:
-                print("✅ Using cached news analysis (< 7 days old)")
-                DisplayFormatter.display_analysis(recent, profile)
-                return
-            
-            # Fetch fresh news
-            news_fetcher = NewsFetcher(NEWS_API_KEY, self.db_manager)
-            news_sections = news_fetcher.fetch_comprehensive_news(profile, [])
-            
-            context = ""
-            for section_name, content in news_sections.items():
-                if content:
-                    context += f"\n--- {section_name.upper()} NEWS ---\n{content}\n"
-            
-            if not context.strip():
-                print("⚠️  No news articles found")
-                return
-            
-            # Run analysis
-            analyzer = InvestmentAnalyzer(OLLAMA_MODEL, OLLAMA_BASE_URL)
-            examples = self.db_manager.get_few_shot_examples(n=2, min_quality_score=6.5)
-            
-            analysis_json, processing_time = analyzer.analyze(context, examples)
-            
-            # Display and save
-            DisplayFormatter.display_analysis(analysis_json, profile)
-            
-            # Save to cache
-            metadata = {
-                'processing_time': processing_time,
-                'avg_score': 0,
-                'num_risk_flags': 0,
-                'num_opportunities': 0
-            }
-            self.db_manager.save_analysis(ticker, analysis_json, context, OLLAMA_MODEL, metadata)
-            
-        except Exception as e:
-            print(f"⚠️  News analysis error: {e}")
-    
-    def generate_personalized_recommendation(self, ticker: str):
-        """Generate personalized recommendation based on investor profile"""
-        if not self.investor_profile:
-            return
-        
-        print(f"\n{SEPARATOR}")
-        print(f"🎯 PERSONALIZED RECOMMENDATION FOR {ticker}")
-        print(SEPARATOR)
-        
-        # Build context for Llama
-        profile_summary = f"""
-Investor Profile:
-- Name: {self.investor_profile['name']}
-- Investment Style: {self.investor_profile['investment_style']}
-- Risk Management Score: {self.investor_profile['risk_mgmt_score']:.0f}/100
-- Diversification Score: {self.investor_profile['diversification_score']:.0f}/100
-- Performance Score: {self.investor_profile['performance_score']:.0f}/100
-- Discipline Score: {self.investor_profile['discipline_score']:.0f}/100
-- Overall Score: {self.investor_profile['overall_score']:.1f}/100
-- Current Holdings: {self.investor_profile['num_holdings']} stocks
-- Average Portfolio Volatility: {self.investor_profile['avg_volatility']:.2f}%
-- Average Beta: {self.investor_profile['avg_beta']:.2f}
-
-Current Recommendations:
-{chr(10).join('- ' + rec for rec in self.investor_profile['recommendations'])}
-"""
-        
-        prompt = f"""As a financial advisor, provide a personalized investment recommendation for {ticker} based on this investor's profile:
-
-{profile_summary}
-
-Consider:
-1. Does this stock align with their risk tolerance?
-2. Would it improve their diversification?
-3. Is it appropriate for their investment style?
-4. What allocation percentage would be suitable?
-5. Any specific risks or opportunities for this investor?
-
-Provide a concise, actionable recommendation in 3-4 paragraphs."""
-        
-        try:
-            response = ollama.chat(
-                model=OLLAMA_MODEL,
-                messages=[
-                    {'role': 'system', 'content': 'You are a personalized financial advisor.'},
-                    {'role': 'user', 'content': prompt}
+                # Radar chart for scores
+                categories = ['Risk Mgmt', 'Diversification', 'Performance', 
+                             'Discipline', 'Timing']
+                scores = [
+                    profile['risk_mgmt_score'],
+                    profile['diversification_score'],
+                    profile['performance_score'],
+                    profile['discipline_score'],
+                    profile['timing_score']
                 ]
-            )
-            
-            recommendation = response['message']['content']
-            print(recommendation)
-            print(SEPARATOR)
-            
-        except Exception as e:
-            print(f"❌ Error generating recommendation: {e}")
-            print("Please ensure Ollama is running with llama3.2 model")
-    
-    def generate_comparative_recommendation(self, tickers: List[str], analyses: Dict, query: str):
-        """Generate comparative recommendation for multiple stocks"""
-        if not self.investor_profile:
-            return
-        
-        print(f"\n{SEPARATOR}")
-        print(f"🎯 PERSONALIZED COMPARATIVE RECOMMENDATION")
-        print(SEPARATOR)
-        
-        profile_summary = f"""
-Investor Profile:
-- Investment Style: {self.investor_profile['investment_style']}
-- Risk Management: {self.investor_profile['risk_mgmt_score']:.0f}/100
-- Diversification: {self.investor_profile['diversification_score']:.0f}/100
-- Overall Score: {self.investor_profile['overall_score']:.1f}/100
-- Portfolio Volatility: {self.investor_profile['avg_volatility']:.2f}%
-- Beta: {self.investor_profile['avg_beta']:.2f}
-"""
-        
-        # Summarize analyses
-        analyses_summary = ""
-        for ticker, analysis in analyses.items():
-            analyses_summary += f"\n--- {ticker} Analysis Summary ---\n"
-            # Extract key points from the outputs
-            if 'FINAL INVESTMENT SCORE' in analysis['stock_data']:
-                lines = analysis['stock_data'].split('\n')
-                for line in lines:
-                    if 'SCORE' in line or 'RECOMMENDATION' in line:
-                        analyses_summary += line + '\n'
-        
-        prompt = f"""Original Question: {query}
-
-Stocks Being Compared: {', '.join(tickers)}
-
-{profile_summary}
-
-Analysis Results:
-{analyses_summary}
-
-As a financial advisor, provide a personalized comparative recommendation:
-1. Which stock(s) best fit this investor's profile?
-2. Why is it the better choice given their risk tolerance and style?
-3. What percentage allocation would you recommend?
-4. Any concerns or caveats?
-
-Be specific and actionable. Limit to 4-5 paragraphs."""
-        
-        try:
-            response = ollama.chat(
-                model=OLLAMA_MODEL,
-                messages=[
-                    {'role': 'system', 'content': 'You are a personalized financial advisor specializing in comparative stock analysis.'},
-                    {'role': 'user', 'content': prompt}
-                ]
-            )
-            
-            recommendation = response['message']['content']
-            print(recommendation)
-            print(SEPARATOR)
-            print("\n⚠️  DISCLAIMER: This is not financial advice. Consult a qualified advisor.")
-            print(SEPARATOR)
-            
-        except Exception as e:
-            print(f"❌ Error generating recommendation: {e}")
-    
-    def run(self):
-        """Main application loop"""
-        print("\n" + SEPARATOR)
-        print("🚀 WELCOME TO THE INTEGRATED INVESTMENT ANALYSIS SYSTEM")
-        print(SEPARATOR)
-        print("\nThis system combines:")
-        print("  ✓ Personal investor profiling")
-        print("  ✓ Intelligent query processing")
-        print("  ✓ Comprehensive stock analysis")
-        print("  ✓ News sentiment analysis")
-        print("  ✓ Personalized AI recommendations")
-        
-        while True:
-            try:
-                self.display_menu()
-                choice = input("\nSelect option (1-7): ").strip()
                 
-                if choice == '1':
-                    self.login_or_create_profile()
-                elif choice == '2':
-                    self.view_profile()
-                elif choice == '3':
-                    self.update_portfolio()
-                elif choice == '4':
-                    self.process_query()
-                elif choice == '5':
-                    # Direct stock analysis
-                    ticker = input("\nEnter ticker symbol: ").upper().strip()
-                    if ticker:
-                        self.analyze_single_stock(ticker)
-                elif choice == '6':
-                    list_all_investors()
-                elif choice == '7':
-                    print("\n👋 Thank you for using the Investment Analysis System!")
-                    print("   Remember: Always do your own research and consult professionals.")
-                    sys.exit(0)
+                fig = go.Figure(data=go.Scatterpolar(
+                    r=scores,
+                    theta=categories,
+                    fill='toself',
+                    name='Your Scores'
+                ))
+                
+                fig.update_layout(
+                    polar=dict(
+                        radialaxis=dict(
+                            visible=True,
+                            range=[0, 100]
+                        )),
+                    showlegend=False,
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Portfolio composition
+            st.subheader("💼 Portfolio Composition")
+            
+            portfolio_dict = profile['portfolio']
+            if portfolio_dict:
+                # Pie chart
+                fig = go.Figure(data=[go.Pie(
+                    labels=list(portfolio_dict.keys()),
+                    values=list(portfolio_dict.values()),
+                    hole=.3
+                )])
+                fig.update_layout(
+                    title="Portfolio Allocation",
+                    height=500
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Table view
+                holding_periods = profile['holding_periods']
+                df = pd.DataFrame({
+                    'Ticker': list(portfolio_dict.keys()),
+                    'Allocation (%)': [f"{v:.1f}" for v in portfolio_dict.values()],
+                    'Days Held': [holding_periods.get(t, 0) for t in portfolio_dict.keys()]
+                })
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No portfolio holdings found")
+            
+            st.markdown("---")
+            
+            # Recommendations
+            st.subheader("💡 Action Items")
+            recs = profile['recommendations']
+            
+            if recs:
+                for i, rec in enumerate(recs, 1):
+                    st.warning(f"**{i}.** {rec}")
+            else:
+                st.success("✅ No urgent action items. Your portfolio looks good!")
+            
+            st.markdown("---")
+            
+            # Performance insights
+            st.subheader("📈 Performance Insights")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                score = profile['risk_mgmt_score']
+                if score >= 80:
+                    st.success(f"**Risk Management:** Excellent ({score:.0f}/100)")
+                elif score >= 60:
+                    st.info(f"**Risk Management:** Good ({score:.0f}/100)")
                 else:
-                    print("\n❌ Invalid choice. Please select 1-7.")
-                
-                input("\nPress Enter to continue...")
-                
-            except KeyboardInterrupt:
-                print("\n\n👋 Goodbye!")
-                sys.exit(0)
-            except Exception as e:
-                print(f"\n❌ Error: {e}")
-                import traceback
-                traceback.print_exc()
-                input("\nPress Enter to continue...")
+                    st.warning(f"**Risk Management:** Needs Improvement ({score:.0f}/100)")
+            
+            with col2:
+                score = profile['diversification_score']
+                if score >= 80:
+                    st.success(f"**Diversification:** Excellent ({score:.0f}/100)")
+                elif score >= 60:
+                    st.info(f"**Diversification:** Good ({score:.0f}/100)")
+                else:
+                    st.warning(f"**Diversification:** Needs Improvement ({score:.0f}/100)")
+            
+            with col3:
+                score = profile['discipline_score']
+                if score >= 80:
+                    st.success(f"**Discipline:** Excellent ({score:.0f}/100)")
+                elif score >= 60:
+                    st.info(f"**Discipline:** Good ({score:.0f}/100)")
+                else:
+                    st.warning(f"**Discipline:** Needs Improvement ({score:.0f}/100)")
+            
+            # Quick actions
+            st.markdown("---")
+            st.subheader("⚡ Quick Actions")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("🔄 Update Profile", use_container_width=True):
+                    st.session_state.current_page = "👤 Investor Profile"
+                    st.rerun()
+            
+            with col2:
+                if st.button("🎯 Get Recommendation", use_container_width=True):
+                    st.session_state.current_page = "🎯 Personalized Recommendation"
+                    st.rerun()
+            
+            with col3:
+                if st.button("📈 Analyze Stock", use_container_width=True):
+                    st.session_state.current_page = "📈 Stock Analysis"
+                    st.rerun()
 
-
-def main():
-    """Entry point"""
-    # Check environment
-    if not os.environ.get("OLLAMA_MODEL"):
-        print("⚠️  OLLAMA_MODEL not set, using default: llama3.2")
-    
-    # Initialize and run system
-    system = IntegratedAnalysisSystem()
-    system.run()
-
-
-if __name__ == "__main__":
-    main()
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style='text-align: center; color: gray; padding: 2rem 0;'>
+    <p>⚠️ <strong>Disclaimer:</strong> This tool is for educational and informational purposes only. 
+    Not financial advice. Always consult with a qualified financial advisor before making investment decisions.</p>
+    <p>Powered by Ollama, Yahoo Finance & NewsAPI</p>
+</div>
+""", unsafe_allow_html=True)

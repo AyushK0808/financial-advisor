@@ -17,6 +17,7 @@ def init_database():
             name TEXT NOT NULL,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             portfolio JSON NOT NULL,
+            purchase_prices JSON NOT NULL,
             holding_periods JSON NOT NULL,
             num_holdings INTEGER,
             num_sectors INTEGER,
@@ -37,7 +38,44 @@ def init_database():
     conn.close()
     print("✅ Database initialized")
 
-def save_investor_profile(user_id, name, portfolio, holding_periods, analysis_results):
+def get_historical_purchase_price(ticker: str, holding_period_days: int) -> float:
+    """
+    Calculate the purchase price based on historical data.
+    
+    Args:
+        ticker: Stock ticker symbol
+        holding_period_days: Number of days the stock has been held
+        
+    Returns:
+        Historical price from holding_period_days ago, or None if unavailable
+    """
+    try:
+        # Calculate the purchase date
+        purchase_date = datetime.now() - timedelta(days=holding_period_days)
+        
+        # Fetch historical data with buffer (extra days to account for weekends/holidays)
+        buffer_days = int(holding_period_days * 1.2) + 10
+        stock = yf.Ticker(ticker)
+        hist = stock.history(period=f"{buffer_days}d")
+        
+        if hist.empty:
+            print(f"  ⚠️  No historical data available for {ticker}")
+            return None
+        
+        # Find the closest trading day to the purchase date
+        hist_dates = hist.index
+        closest_date = min(hist_dates, key=lambda d: abs((d.date() - purchase_date.date()).days))
+        
+        purchase_price = hist.loc[closest_date, 'Close']
+        
+        print(f"  ✅ {ticker}: Purchase price ${purchase_price:.2f} from {closest_date.date()} ({holding_period_days} days ago)")
+        return float(purchase_price)
+        
+    except Exception as e:
+        print(f"  ❌ Error calculating purchase price for {ticker}: {e}")
+        return None
+
+def save_investor_profile(user_id, name, portfolio, purchase_prices, holding_periods, analysis_results):
     """Save or update investor profile in database."""
     conn = sqlite3.connect('investor_profiles.db')
     cursor = conn.cursor()
@@ -52,6 +90,7 @@ def save_investor_profile(user_id, name, portfolio, holding_periods, analysis_re
         'name': name,
         'last_updated': datetime.now().isoformat(),
         'portfolio': json.dumps(portfolio),
+        'purchase_prices': json.dumps(purchase_prices),
         'holding_periods': json.dumps(holding_periods),
         'num_holdings': analysis_results['num_holdings'],
         'num_sectors': analysis_results['num_sectors'],
@@ -71,14 +110,14 @@ def save_investor_profile(user_id, name, portfolio, holding_periods, analysis_re
         # Update existing record
         cursor.execute('''
             UPDATE investor_profiles
-            SET name = ?, last_updated = ?, portfolio = ?, holding_periods = ?,
+            SET name = ?, last_updated = ?, portfolio = ?, purchase_prices = ?, holding_periods = ?,
                 num_holdings = ?, num_sectors = ?, avg_volatility = ?, avg_beta = ?,
                 investment_style = ?, risk_mgmt_score = ?, diversification_score = ?,
                 performance_score = ?, discipline_score = ?, timing_score = ?,
                 overall_score = ?, recommendations = ?
             WHERE user_id = ?
         ''', (
-            data['name'], data['last_updated'], data['portfolio'], data['holding_periods'],
+            data['name'], data['last_updated'], data['portfolio'], data['purchase_prices'], data['holding_periods'],
             data['num_holdings'], data['num_sectors'], data['avg_volatility'], data['avg_beta'],
             data['investment_style'], data['risk_mgmt_score'], data['diversification_score'],
             data['performance_score'], data['discipline_score'], data['timing_score'],
@@ -89,15 +128,15 @@ def save_investor_profile(user_id, name, portfolio, holding_periods, analysis_re
         # Insert new record
         cursor.execute('''
             INSERT INTO investor_profiles (
-                user_id, name, last_updated, portfolio, holding_periods,
+                user_id, name, last_updated, portfolio, purchase_prices, holding_periods,
                 num_holdings, num_sectors, avg_volatility, avg_beta,
                 investment_style, risk_mgmt_score, diversification_score,
                 performance_score, discipline_score, timing_score,
                 overall_score, recommendations
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data['user_id'], data['name'], data['last_updated'], data['portfolio'],
-            data['holding_periods'], data['num_holdings'], data['num_sectors'],
+            data['purchase_prices'], data['holding_periods'], data['num_holdings'], data['num_sectors'],
             data['avg_volatility'], data['avg_beta'], data['investment_style'],
             data['risk_mgmt_score'], data['diversification_score'], data['performance_score'],
             data['discipline_score'], data['timing_score'], data['overall_score'],
@@ -122,6 +161,7 @@ def load_investor_profile(user_id):
         columns = [desc[0] for desc in cursor.description]
         profile = dict(zip(columns, row))
         profile['portfolio'] = json.loads(profile['portfolio'])
+        profile['purchase_prices'] = json.loads(profile['purchase_prices'])
         profile['holding_periods'] = json.loads(profile['holding_periods'])
         profile['recommendations'] = json.loads(profile['recommendations'])
         return profile
@@ -391,6 +431,24 @@ def calculate_portfolio_metrics(portfolio, period="1y"):
     
     return portfolio_data, weights, returns_list
 
+def calculate_purchase_prices(portfolio, holding_periods):
+    """Calculate historical purchase prices for all portfolio holdings."""
+    print("\n💰 Calculating historical purchase prices...")
+    purchase_prices = {}
+    
+    for ticker in portfolio.keys():
+        if ticker in holding_periods:
+            holding_days = holding_periods[ticker]
+            purchase_price = get_historical_purchase_price(ticker, holding_days)
+            if purchase_price:
+                purchase_prices[ticker] = purchase_price
+            else:
+                print(f"  ⚠️  Could not determine purchase price for {ticker}")
+        else:
+            print(f"  ⚠️  No holding period specified for {ticker}")
+    
+    return purchase_prices
+
 def score_investor_behavior(portfolio_data, weights, returns_list, score_details):
     """Score investor based on behavioral finance principles."""
     behavior_scores = {}
@@ -523,6 +581,9 @@ def analyze_investor_profile(portfolio, holding_periods, user_id, name):
     print("🔍 PERSONAL INVESTMENT PROFILE ANALYSIS")
     print("="*75)
     
+    # Calculate purchase prices first
+    purchase_prices = calculate_purchase_prices(portfolio, holding_periods)
+    
     # Calculate portfolio metrics
     portfolio_data, weights, returns_list = calculate_portfolio_metrics(portfolio)
     
@@ -581,8 +642,8 @@ def analyze_investor_profile(portfolio, holding_periods, user_id, name):
         'recommendations': recommendations
     }
     
-    # Save to database
-    save_investor_profile(user_id, name, portfolio, holding_periods, analysis_results)
+    # Save to database with purchase prices
+    save_investor_profile(user_id, name, portfolio, purchase_prices, holding_periods, analysis_results)
     
     # Display results
     print("\n" + "="*75)
@@ -595,6 +656,18 @@ def analyze_investor_profile(portfolio, holding_periods, user_id, name):
     print(f"Sectors Represented: {score_details['diversification']['sectors']}")
     print(f"Average Portfolio Volatility: {score_details['risk_tolerance']['volatility']:.2f}%")
     print(f"Average Beta: {score_details['market_correlation']['beta']:.2f}")
+    
+    # Display purchase prices
+    print("\n" + "="*75)
+    print("💰 PURCHASE PRICES (Historical)")
+    print("="*75)
+    for ticker, price in purchase_prices.items():
+        current_price = portfolio_data.get(ticker, {}).get('current_price', 0)
+        if current_price > 0:
+            return_pct = ((current_price - price) / price) * 100
+            print(f"{ticker}: ${price:.2f} → ${current_price:.2f} ({return_pct:+.2f}%)")
+        else:
+            print(f"{ticker}: ${price:.2f}")
     
     print("\n" + "="*75)
     print(f"📊 RISK MANAGEMENT SCORE: {risk_mgmt_score:.0f}/100")

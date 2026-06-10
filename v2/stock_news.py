@@ -616,11 +616,22 @@ class SaveFormatter:
                 "details": str(e),
                 "raw_json": analysis_json
             }
-def orchestrator(ticker,countries,use_cache='y'):
+def orchestrator(ticker, countries, use_cache='y'):
+    """
+    Main orchestration function for investment analysis.
+    
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL', 'NVDA')
+        countries: List of countries for macro analysis (e.g., ['USA', 'China'])
+        use_cache: Whether to use cached analysis ('y' or 'n')
+    
+    Returns:
+        dict: Formatted analysis results containing profile and analysis data
+    """
     # Validate environment
     if not NEWS_API_KEY:
         logger.error("NEWS_API_KEY not set")
-        sys.exit(1)
+        raise ValueError("NEWS_API_KEY not set in environment")
     
     # Initialize components
     try:
@@ -629,29 +640,32 @@ def orchestrator(ticker,countries,use_cache='y'):
         validator = AnalysisValidator()
     except Exception as e:
         logger.error(f"Initialization failed: {e}")
-        sys.exit(1)
+        raise
     
-    # Get user input
+    # Validate ticker input
     if not ticker:
-        print("No ticker provided. Exiting.")
-        sys.exit(1)
+        logger.error("No ticker provided")
+        raise ValueError("Ticker is required")
     
-    # Check for recent analysis
+    ticker = ticker.upper().strip()
+    
+    # Check for recent analysis in cache
     if use_cache != 'n':
         recent = db_manager.get_recent_analysis(ticker, days=7)
         if recent:
+            logger.info(f"Using cached analysis for {ticker}")
             profile = CompanyProfileFetcher.fetch_profile(ticker)
             if profile:
-                res=SaveFormatter.format_as_dict(recent, profile)
-                return
+                result = SaveFormatter.format_as_dict(recent, profile)
+                return result  # FIX: Return the result
+            else:
+                logger.warning("Failed to fetch profile for cached analysis")
     
     # Fetch company profile
     profile = CompanyProfileFetcher.fetch_profile(ticker)
     if not profile:
-        logger.error("Failed to fetch company profile")
-        sys.exit(1)
-    
-    # Get countries for macro analysis
+        logger.error(f"Failed to fetch company profile for {ticker}")
+        raise ValueError(f"Could not fetch profile for ticker: {ticker}")
     
     # Fetch news
     news_fetcher = NewsFetcher(NEWS_API_KEY, db_manager)
@@ -665,7 +679,7 @@ def orchestrator(ticker,countries,use_cache='y'):
     
     if not context.strip():
         logger.error("No news articles found")
-        sys.exit(1)
+        raise ValueError("No news articles found for analysis")
     
     # Get few-shot examples
     examples = db_manager.get_few_shot_examples(n=2, min_quality_score=6.5)
@@ -678,24 +692,21 @@ def orchestrator(ticker,countries,use_cache='y'):
         is_valid, metadata, error = validator.validate_analysis(analysis_json)
         if not is_valid:
             logger.error(f"Analysis validation failed: {error}")
-            print(f"\nValidation Error: {error}")
-            print("\n--- RAW OUTPUT ---")
-            print(analysis_json)
-            sys.exit(1)
+            raise ValueError(f"Analysis validation failed: {error}")
         
-        # Display results
-        res=SaveFormatter.format_as_dict(recent, profile)
+        # Format results - FIX: Use analysis_json, not 'recent'
+        result = SaveFormatter.format_as_dict(analysis_json, profile)
         
         # Save to database
         metadata['processing_time'] = processing_time
         db_manager.save_analysis(ticker, analysis_json, context, OLLAMA_MODEL, metadata)
         
         logger.info("Analysis completed successfully")
-        return res
+        return result  # FIX: Return the result
         
     except Exception as e:
         logger.error(f"Analysis failed: {e}")
-        sys.exit(1)
+        raise
 # --- MAIN ORCHESTRATOR ---
 def main():
     print("\n" + "="*70)
@@ -789,3 +800,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # print(orchestrator("AAPL", ["USA"], use_cache='y'))

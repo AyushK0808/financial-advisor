@@ -121,16 +121,20 @@ class PersonalizedStockRecommendation:
                 'message': f'Investor profile not found for user_id: {user_id}'
             }
         
-        # Parse portfolio (it's stored as JSON string)
+        # Parse portfolio data (it's stored as JSON string)
         try:
             portfolio = json.loads(investor_profile['portfolio']) if isinstance(investor_profile['portfolio'], str) else investor_profile['portfolio']
+            purchase_prices = json.loads(investor_profile['purchase_prices']) if isinstance(investor_profile['purchase_prices'], str) else investor_profile['purchase_prices']
             holding_periods = json.loads(investor_profile['holding_periods']) if isinstance(investor_profile['holding_periods'], str) else investor_profile['holding_periods']
         except Exception as e:
             return {
                 'status': 'error',
                 'message': f'Failed to parse portfolio data: {e}'
             }
-        print(portfolio)
+        
+        print(f"Portfolio: {portfolio}")
+        print(f"Purchase Prices: {purchase_prices}")
+        
         # Infer investor preferences from profile
         risk_tolerance = self._infer_risk_tolerance(investor_profile)
         investment_horizon = self._infer_investment_horizon(investor_profile)
@@ -157,12 +161,29 @@ class PersonalizedStockRecommendation:
         
         # If the investor holds the stock, populate the position details
         if is_holding:
-            # Get the quantity from the portfolio
-            current_position['quantity'] = portfolio.get(ticker) 
+            # Get the portfolio weight/percentage
+            current_position['weight_pct'] = portfolio.get(ticker, 0)
+            
+            # Get purchase price from stored historical data
+            purchase_price = purchase_prices.get(ticker)
+            
+            if purchase_price:
+                current_position['purchase_price'] = purchase_price
+            else:
+                # Fallback: use current price with warning
+                current_price = stock_analysis.get('price_and_return', {}).get('current_price', 0)
+                current_position['purchase_price'] = current_price
+                print(f"⚠️  Warning: No purchase price found for {ticker}, using current price")
             
             # Add holding period if available
             if ticker in holding_periods:
                 current_position['holding_period'] = holding_periods[ticker]
+            
+            # Calculate shares based on assumed portfolio value
+            # Assuming a $100k portfolio for share calculation
+            assumed_portfolio_value = 100000
+            position_value = assumed_portfolio_value * (current_position['weight_pct'] / 100)
+            current_position['shares'] = int(position_value / purchase_price) if purchase_price > 0 else 0
         
         # Build enhanced profile for analysis
         enhanced_profile = {
@@ -347,10 +368,10 @@ Respond ONLY with valid JSON, no other text."""
         scores = stock_analysis.get('scores', {})
         
         current_price = price_info.get('current_price', 0)
-        purchase_price = current_position.get('purchase_price', current_price)
+        purchase_price = current_position.get('purchase_price', 0)
         shares = current_position.get('shares', 0)
         
-        # Calculate returns
+        # Calculate returns using actual purchase price
         position_return_pct = ((current_price - purchase_price) / purchase_price) * 100 if purchase_price > 0 else 0
         position_value = shares * current_price
         unrealized_gain = shares * (current_price - purchase_price)
@@ -434,7 +455,8 @@ Respond ONLY with valid JSON, no other text."""
                 'position_value': position_value,
                 'unrealized_gain_loss': unrealized_gain,
                 'return_pct': position_return_pct,
-                'holding_period_days': holding_period
+                'holding_period_days': holding_period,
+                'weight_pct': current_position.get('weight_pct', 0)
             },
             'recommendation': analysis['recommendation'],
             'action': analysis['action'],
@@ -709,7 +731,86 @@ def main():
         use_cache='y'
     )
     
-    print(result)
+    # Pretty print the result
+    print("\n" + "="*75)
+    print("📊 PERSONALIZED STOCK RECOMMENDATION")
+    print("="*75)
+    
+    if result.get('status') == 'error':
+        print(f"\n❌ Error: {result.get('message')}")
+        return
+    
+    # Investor Profile
+    print(f"\n👤 INVESTOR: {result['investor_profile']['name']}")
+    print(f"   Risk Tolerance: {result['investor_profile']['risk_tolerance'].upper()}")
+    print(f"   Investment Horizon: {result['investor_profile']['investment_horizon']}")
+    print(f"   Investment Style: {result['investor_profile']['investment_style']}")
+    print(f"   Overall Score: {result['investor_profile']['overall_score']:.1f}/100")
+    
+    # Current Holding (if exists)
+    if result.get('current_holding'):
+        holding = result['current_holding']
+        print(f"\n💼 CURRENT POSITION IN {ticker}:")
+        print(f"   Shares: {holding['shares']}")
+        print(f"   Purchase Price: ${holding['purchase_price']:.2f}")
+        print(f"   Current Price: ${holding['current_price']:.2f}")
+        print(f"   Position Value: ${holding['position_value']:,.2f}")
+        print(f"   Return: {holding['return_pct']:+.2f}%")
+        print(f"   Unrealized P/L: ${holding['unrealized_gain_loss']:+,.2f}")
+        print(f"   Holding Period: {holding['holding_period_days']} days")
+        print(f"   Portfolio Weight: {holding['weight_pct']:.2f}%")
+    
+    # Recommendation
+    print(f"\n🎯 RECOMMENDATION: {result['recommendation']}")
+    print(f"   Score: {result['score']}")
+    print(f"   Confidence: {result['confidence']}")
+    print(f"   Action: {result['action']}")
+    
+    # Reasons
+    if result.get('current_holding'):
+        print("\n✅ REASONS TO HOLD:")
+        for i, reason in enumerate(result.get('reasons_for_hold', []), 1):
+            print(f"   {i}. {reason}")
+        
+        print("\n❌ REASONS TO SELL:")
+        for i, reason in enumerate(result.get('reasons_for_sell', []), 1):
+            print(f"   {i}. {reason}")
+    else:
+        print("\n✅ REASONS TO BUY:")
+        for i, reason in enumerate(result.get('reasons_for', []), 1):
+            print(f"   {i}. {reason}")
+        
+        print("\n❌ REASONS AGAINST:")
+        for i, reason in enumerate(result.get('reasons_against', []), 1):
+            print(f"   {i}. {reason}")
+        
+        # Position size suggestion
+        if result.get('suggested_position_size'):
+            pos = result['suggested_position_size']
+            print(f"\n💰 SUGGESTED POSITION SIZE:")
+            print(f"   Shares: {pos['suggested_shares']}")
+            print(f"   Investment: ${pos['investment_amount']:,.2f}")
+            print(f"   Portfolio Allocation: {pos['portfolio_allocation_pct']:.2f}%")
+            print(f"   Note: {pos['note']}")
+    
+    # Stock Summary
+    print(f"\n📈 STOCK SUMMARY ({ticker}):")
+    summary = result['stock_summary']
+    print(f"   Current Price: ${summary['current_price']:.2f}")
+    print(f"   Volatility: {summary['volatility']:.2f}%")
+    if summary.get('beta'):
+        print(f"   Beta: {summary['beta']:.2f}")
+    if summary.get('sharpe_ratio'):
+        print(f"   Sharpe Ratio: {summary['sharpe_ratio']:.2f}")
+    print(f"   Overall Score: {summary['overall_score']:.1f}/100")
+    if summary.get('sector'):
+        print(f"   Sector: {summary['sector']}")
+    if summary.get('rsi'):
+        print(f"   RSI: {summary['rsi']:.2f}")
+    
+    print("\n" + "="*75)
+    print(f"🤖 Analysis powered by: {'Ollama LLM' if result.get('llm_analysis') else 'Fallback Logic'}")
+    print("="*75)
 
 
 if __name__ == "__main__":
