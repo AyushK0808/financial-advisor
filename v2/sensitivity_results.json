@@ -1,0 +1,233 @@
+{
+  "AAPL": {
+    "component_scores": {
+      "fundamental": 78,
+      "technical": 75,
+      "risk": 87
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 79.2,
+    "paper_signal": "BUY",
+    "score_range": [
+      75.0,
+      87.0
+    ],
+    "score_std": 2.734,
+    "signal_distribution": {
+      "BUY": 231,
+      "HOLD": 0,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 100.0,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "MSFT": {
+    "component_scores": {
+      "fundamental": 96,
+      "technical": 35,
+      "risk": 25
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 56.9,
+    "paper_signal": "HOLD",
+    "score_range": [
+      25.0,
+      96.0
+    ],
+    "score_std": 16.825,
+    "signal_distribution": {
+      "BUY": 71,
+      "HOLD": 92,
+      "SELL": 68
+    },
+    "dominant_signal": "HOLD",
+    "signal_stability_pct": 39.8,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "JPM": {
+    "component_scores": {
+      "fundamental": 82,
+      "technical": 87,
+      "risk": 72
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 81.25,
+    "paper_signal": "BUY",
+    "score_range": [
+      72.0,
+      87.0
+    ],
+    "score_std": 3.344,
+    "signal_distribution": {
+      "BUY": 231,
+      "HOLD": 0,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 100.0,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "XOM": {
+    "component_scores": {
+      "fundamental": 64,
+      "technical": 83,
+      "risk": 85
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 75.9,
+    "paper_signal": "BUY",
+    "score_range": [
+      64.0,
+      85.0
+    ],
+    "score_std": 5.074,
+    "signal_distribution": {
+      "BUY": 231,
+      "HOLD": 0,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 100.0,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "JNJ": {
+    "component_scores": {
+      "fundamental": 79,
+      "technical": 87,
+      "risk": 90
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 84.55,
+    "paper_signal": "BUY",
+    "score_range": [
+      79.0,
+      90.0
+    ],
+    "score_std": 2.489,
+    "signal_distribution": {
+      "BUY": 231,
+      "HOLD": 0,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 100.0,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "AMZN": {
+    "component_scores": {
+      "fundamental": 69,
+      "technical": 50,
+      "risk": 44
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 56.1,
+    "paper_signal": "HOLD",
+    "score_range": [
+      44.0,
+      69.0
+    ],
+    "score_std": 5.714,
+    "signal_distribution": {
+      "BUY": 43,
+      "HOLD": 188,
+      "SELL": 0
+    },
+    "dominant_signal": "HOLD",
+    "signal_stability_pct": 81.4,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "NVDA": {
+    "component_scores": {
+      "fundamental": 100,
+      "technical": 50,
+      "risk": 66
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 74.0,
+    "paper_signal": "BUY",
+    "score_range": [
+      50.0,
+      100.0
+    ],
+    "score_std": 11.179,
+    "signal_distribution": {
+      "BUY": 197,
+      "HOLD": 34,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 85.3,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "KO": {
+    "component_scores": {
+      "fundamental": 67,
+      "technical": 87,
+      "risk": 75
+    },
+    "paper_weights": [
+      0.4,
+      0.35,
+      0.25
+    ],
+    "paper_score": 76.0,
+    "paper_signal": "BUY",
+    "score_range": [
+      67.0,
+      87.0
+    ],
+    "score_std": 4.407,
+    "signal_distribution": {
+      "BUY": 231,
+      "HOLD": 0,
+      "SELL": 0
+    },
+    "dominant_signal": "BUY",
+    "signal_stability_pct": 100.0,
+    "paper_matches_dominant": true,
+    "n_weight_combinations": 231
+  },
+  "_aggregate": {
+    "mean_signal_stability_pct": 88.3,
+    "min_signal_stability_pct": 39.8,
+    "paper_weights_match_dominant": "8/8",
+    "n_weight_combinations_tested": 231,
+    "conclusion": "Paper weights are robust: dominant signal unchanged in 88.3% of weight combinations on average."
+  }
+}

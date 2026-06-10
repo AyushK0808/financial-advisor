@@ -1,0 +1,180 @@
+{
+  "AAPL": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 15.12,
+      "sharpe_ratio": 0.891,
+      "hit_rate_pct": 70.0,
+      "buy_signals": 20,
+      "hold_signals": 14,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": -1.22,
+      "sharpe_ratio": -0.067,
+      "hit_rate_pct": 50.0
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 18.78,
+    "alpha_vs_technical_pct": 16.34
+  },
+  "MSFT": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 20.69,
+      "sharpe_ratio": 1.053,
+      "hit_rate_pct": 57.1,
+      "buy_signals": 28,
+      "hold_signals": 6,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": -1.04,
+      "sharpe_ratio": -0.08,
+      "hit_rate_pct": 57.1
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 24.35,
+    "alpha_vs_technical_pct": 21.73
+  },
+  "JPM": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 14.7,
+      "sharpe_ratio": 1.046,
+      "hit_rate_pct": 56.2,
+      "buy_signals": 16,
+      "hold_signals": 18,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": 0.31,
+      "sharpe_ratio": 0.02,
+      "hit_rate_pct": 75.0
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 18.36,
+    "alpha_vs_technical_pct": 14.39
+  },
+  "XOM": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": -5.34,
+      "sharpe_ratio": -0.389,
+      "hit_rate_pct": 50.0,
+      "buy_signals": 10,
+      "hold_signals": 23,
+      "sell_signals": 1
+    },
+    "technical_baseline": {
+      "annualized_return_pct": -11.62,
+      "sharpe_ratio": -0.588,
+      "hit_rate_pct": 50.0
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": -1.68,
+    "alpha_vs_technical_pct": 6.28
+  },
+  "JNJ": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": -3.87,
+      "sharpe_ratio": -0.53,
+      "hit_rate_pct": 41.7,
+      "buy_signals": 12,
+      "hold_signals": 22,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": 0.37,
+      "sharpe_ratio": 0.038,
+      "hit_rate_pct": 40.0
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": -0.21,
+    "alpha_vs_technical_pct": -4.24
+  },
+  "AMZN": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 13.99,
+      "sharpe_ratio": 0.789,
+      "hit_rate_pct": 61.5,
+      "buy_signals": 13,
+      "hold_signals": 21,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": 10.76,
+      "sharpe_ratio": 0.415,
+      "hit_rate_pct": 66.7
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 17.65,
+    "alpha_vs_technical_pct": 3.23
+  },
+  "NVDA": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 88.65,
+      "sharpe_ratio": 1.506,
+      "hit_rate_pct": 69.2,
+      "buy_signals": 26,
+      "hold_signals": 8,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": -5.4,
+      "sharpe_ratio": -0.143,
+      "hit_rate_pct": 66.7
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 92.31,
+    "alpha_vs_technical_pct": 94.05
+  },
+  "KO": {
+    "n_signals": 34,
+    "composite": {
+      "annualized_return_pct": 4.23,
+      "sharpe_ratio": 0.398,
+      "hit_rate_pct": 66.7,
+      "buy_signals": 15,
+      "hold_signals": 19,
+      "sell_signals": 0
+    },
+    "technical_baseline": {
+      "annualized_return_pct": 0.53,
+      "sharpe_ratio": 0.064,
+      "hit_rate_pct": 62.5
+    },
+    "benchmark_sp500": {
+      "annualized_return_pct": -3.66
+    },
+    "alpha_vs_benchmark_pct": 7.89,
+    "alpha_vs_technical_pct": 3.7
+  },
+  "_aggregate": {
+    "tickers_evaluated": 8,
+    "composite_mean_ann_return": 18.52,
+    "technical_mean_ann_return": -0.91,
+    "benchmark_mean_ann_return": -3.66,
+    "mean_alpha_vs_benchmark": 22.18,
+    "mean_alpha_vs_technical": 19.44,
+    "mean_hit_rate_pct": 59.1,
+    "mean_sharpe_ratio": 0.595
+  }
+}

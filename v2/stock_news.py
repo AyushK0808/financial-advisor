@@ -290,36 +290,30 @@ class NewsFetcher:
 # --- COMPANY PROFILE FETCHER ---
 class CompanyProfileFetcher:
     @staticmethod
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=5, max=60))
     def fetch_profile(ticker: str) -> Optional[CompanyProfile]:
-        """Fetch company profile with retry logic"""
+        """Fetch company profile with retry logic."""
         logger.info(f"Fetching profile for {ticker}")
-        
-        try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            
-            # Validate required fields
-            required_fields = ['shortName', 'sector', 'industry']
-            if not all(info.get(field) for field in required_fields):
-                logger.error(f"Missing required fields for {ticker}")
-                return None
-            
-            profile = CompanyProfile(
-                name=info.get('shortName'),
-                ticker=ticker,
-                sector=info.get('sector'),
-                industry=info.get('industry'),
-                market_cap=info.get('marketCap'),
-                country=info.get('country')
-            )
-            
-            logger.info(f"Profile fetched: {profile.name} ({profile.sector})")
-            return profile
-            
-        except Exception as e:
-            logger.error(f"Error fetching profile: {e}")
+
+        stock = yf.Ticker(ticker)
+        info  = stock.info
+
+        required_fields = ['shortName', 'sector', 'industry']
+        if not all(info.get(field) for field in required_fields):
+            logger.error(f"Missing required fields for {ticker}")
             return None
+
+        profile = CompanyProfile(
+            name=info.get('shortName'),
+            ticker=ticker,
+            sector=info.get('sector'),
+            industry=info.get('industry'),
+            market_cap=info.get('marketCap'),
+            country=info.get('country'),
+        )
+
+        logger.info(f"Profile fetched: {profile.name} ({profile.sector})")
+        return profile
 
 # --- MODERN OLLAMA LLM WRAPPER ---
 class OllamaLLM(LLM):

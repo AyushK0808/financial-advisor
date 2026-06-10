@@ -134,21 +134,50 @@ def score_fundamentals(fundamentals):
     score = 0
     reasons = []
     
-    # P/E Ratio (lower is generally better)
-    pe = fundamentals.get('pe_ratio')
+    # P/E Ratio — sector-adaptive thresholds (calibrated to Damodaran Jan 2024 medians)
+    pe     = fundamentals.get('pe_ratio')
+    sector = fundamentals.get('sector', '')
+
+    SECTOR_PE_BANDS = {
+        "Technology":             (15, 30, 50),
+        "Communication Services": (15, 28, 50),
+        "Consumer Discretionary": (12, 22, 40),
+        "Healthcare":             (15, 28, 50),
+        "Financials":             (8,  15, 25),
+        "Energy":                 (8,  15, 25),
+        "Utilities":              (12, 18, 28),
+        "Consumer Staples":       (15, 22, 35),
+        "Industrials":            (12, 20, 35),
+        "Materials":              (10, 18, 30),
+        "Real Estate":            (30, 50, 80),
+    }
+    low_pe, mid_pe, high_pe = SECTOR_PE_BANDS.get(sector, (15, 25, 40))
+
     if pe and pe > 0:
-        if pe < 15:
+        if pe < low_pe:
             score += 20
-            reasons.append(f"✓ Attractive P/E ratio: {pe:.2f} (undervalued)")
-        elif pe < 25:
+            reasons.append(
+                f"✓ Attractive P/E ratio: {pe:.2f} "
+                f"(below {low_pe} sector threshold for {sector or 'General'})"
+            )
+        elif pe < mid_pe:
             score += 15
-            reasons.append(f"• Fair P/E ratio: {pe:.2f} (reasonably priced)")
-        elif pe < 40:
+            reasons.append(
+                f"• Fair P/E ratio: {pe:.2f} "
+                f"(within normal range for {sector or 'General'})"
+            )
+        elif pe < high_pe:
             score += 8
-            reasons.append(f"• Moderate P/E ratio: {pe:.2f}")
+            reasons.append(
+                f"• Elevated P/E ratio: {pe:.2f} "
+                f"(above median but below high threshold for {sector or 'General'})"
+            )
         else:
             score += 3
-            reasons.append(f"✗ High P/E ratio: {pe:.2f} (may be overvalued)")
+            reasons.append(
+                f"✗ High P/E ratio: {pe:.2f} "
+                f"(above {high_pe} for {sector or 'General'} — potential overvaluation)"
+            )
     
     # PEG Ratio (< 1 is undervalued)
     peg = fundamentals.get('peg_ratio')
