@@ -695,7 +695,7 @@ def main():
     )
     
     # Example: Analyze if investor should buy AAPL
-    user_id = "ayush0808"
+    user_id = "arjan"
     ticker = "AAPL"
     countries = ["United States", "China"]
     
