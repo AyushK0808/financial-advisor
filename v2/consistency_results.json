@@ -1,0 +1,736 @@
+{
+  "MSFT": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      },
+      "management_and_governance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          8.0,
+          7.0,
+          7.0,
+          7.0,
+          7.0
+        ],
+        "mean": 7.2,
+        "std": 0.447,
+        "cv_pct": 6.21,
+        "min": 7.0,
+        "max": 8.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          6.0,
+          4.0,
+          4.0,
+          5.0,
+          5.0
+        ],
+        "mean": 4.8,
+        "std": 0.837,
+        "cv_pct": 17.43,
+        "min": 4.0,
+        "max": 6.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          5.0,
+          5.0,
+          6.0,
+          6.0
+        ],
+        "mean": 5.5,
+        "std": 0.577,
+        "cv_pct": 10.5,
+        "min": 5.0,
+        "max": 6.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 95.12
+  },
+  "JPM": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      },
+      "management_and_governance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          7.0,
+          7.0,
+          7.0,
+          7.0,
+          7.0
+        ],
+        "mean": 7.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 7.0,
+        "max": 7.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          6.0
+        ],
+        "mean": 7.6,
+        "std": 0.894,
+        "cv_pct": 11.77,
+        "min": 6.0,
+        "max": 8.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          5.0,
+          4.0,
+          4.0,
+          5.0,
+          5.0
+        ],
+        "mean": 4.6,
+        "std": 0.548,
+        "cv_pct": 11.91,
+        "min": 4.0,
+        "max": 5.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          6.0,
+          6.0,
+          5.0,
+          6.0,
+          4.0
+        ],
+        "mean": 5.4,
+        "std": 0.894,
+        "cv_pct": 16.56,
+        "min": 4.0,
+        "max": 6.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      }
+    },
+    "overall_consistency_score": 94.25
+  },
+  "XOM": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      },
+      "management_and_governance": {
+        "scores": [
+          7.0,
+          7.0,
+          7.0,
+          9.0,
+          9.0
+        ],
+        "mean": 7.8,
+        "std": 1.095,
+        "cv_pct": 14.04,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          5.0,
+          5.0,
+          6.0,
+          6.0,
+          7.0
+        ],
+        "mean": 5.8,
+        "std": 0.837,
+        "cv_pct": 14.43,
+        "min": 5.0,
+        "max": 7.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          9.0,
+          9.0,
+          8.0,
+          7.0,
+          8.0
+        ],
+        "mean": 8.2,
+        "std": 0.837,
+        "cv_pct": 10.2,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          4.0,
+          3.0,
+          4.0,
+          5.0,
+          5.0
+        ],
+        "mean": 4.2,
+        "std": 0.837,
+        "cv_pct": 19.92,
+        "min": 3.0,
+        "max": 5.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          6.0,
+          4.0,
+          5.0,
+          6.0,
+          6.0
+        ],
+        "mean": 5.4,
+        "std": 0.894,
+        "cv_pct": 16.56,
+        "min": 4.0,
+        "max": 6.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 89.26
+  },
+  "JNJ": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.6,
+        "std": 0.548,
+        "cv_pct": 6.37,
+        "min": 8.0,
+        "max": 9.0
+      },
+      "management_and_governance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          7.0,
+          7.0
+        ],
+        "mean": 7.6,
+        "std": 0.548,
+        "cv_pct": 7.21,
+        "min": 7.0,
+        "max": 8.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          7.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 8.6,
+        "std": 0.894,
+        "cv_pct": 10.4,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          6.0,
+          7.0,
+          7.0,
+          8.0,
+          8.0
+        ],
+        "mean": 7.2,
+        "std": 0.837,
+        "cv_pct": 11.62,
+        "min": 6.0,
+        "max": 8.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          5.0,
+          3.0,
+          4.0,
+          2.0,
+          4.0
+        ],
+        "mean": 3.6,
+        "std": 1.14,
+        "cv_pct": 31.67,
+        "min": 2.0,
+        "max": 5.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          4.0,
+          5.0,
+          6.0,
+          3.0,
+          6.0
+        ],
+        "mean": 4.8,
+        "std": 1.304,
+        "cv_pct": 27.16,
+        "min": 3.0,
+        "max": 6.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          8.0,
+          8.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 8.6,
+        "std": 0.548,
+        "cv_pct": 6.37,
+        "min": 8.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 85.6
+  },
+  "AMZN": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          9.0,
+          8.0,
+          8.0,
+          9.0,
+          9.0
+        ],
+        "mean": 8.6,
+        "std": 0.548,
+        "cv_pct": 6.37,
+        "min": 8.0,
+        "max": 9.0
+      },
+      "management_and_governance": {
+        "scores": [
+          8.0,
+          9.0,
+          7.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.707,
+        "cv_pct": 8.84,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          9.0,
+          7.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 8.6,
+        "std": 0.894,
+        "cv_pct": 10.4,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          7.0,
+          6.0,
+          6.0,
+          7.0,
+          7.0
+        ],
+        "mean": 6.6,
+        "std": 0.548,
+        "cv_pct": 8.3,
+        "min": 6.0,
+        "max": 7.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          4.0,
+          5.0,
+          4.0,
+          4.0,
+          6.0
+        ],
+        "mean": 4.6,
+        "std": 0.894,
+        "cv_pct": 19.44,
+        "min": 4.0,
+        "max": 6.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          8.0,
+          8.0,
+          5.0,
+          6.0,
+          8.0
+        ],
+        "mean": 7.0,
+        "std": 1.414,
+        "cv_pct": 20.2,
+        "min": 5.0,
+        "max": 8.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 89.49
+  },
+  "NVDA": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      },
+      "management_and_governance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          7.0,
+          7.0,
+          7.0,
+          7.0,
+          8.0
+        ],
+        "mean": 7.2,
+        "std": 0.447,
+        "cv_pct": 6.21,
+        "min": 7.0,
+        "max": 8.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          4.0,
+          4.0,
+          4.0,
+          4.0,
+          4.0
+        ],
+        "mean": 4.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 4.0,
+        "max": 4.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          6.0,
+          6.0,
+          8.0,
+          6.0,
+          6.0
+        ],
+        "mean": 6.4,
+        "std": 0.894,
+        "cv_pct": 13.98,
+        "min": 6.0,
+        "max": 8.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 9.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 9.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 97.12
+  },
+  "KO": {
+    "n_runs": 5,
+    "runs_succeeded": 5,
+    "per_factor": {
+      "company_performance": {
+        "scores": [
+          8.0,
+          8.0,
+          8.0,
+          8.0,
+          8.0
+        ],
+        "mean": 8.0,
+        "std": 0.0,
+        "cv_pct": 0.0,
+        "min": 8.0,
+        "max": 8.0
+      },
+      "management_and_governance": {
+        "scores": [
+          9.0,
+          9.0,
+          9.0,
+          7.0,
+          9.0
+        ],
+        "mean": 8.6,
+        "std": 0.894,
+        "cv_pct": 10.4,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "industry_and_sector_health": {
+        "scores": [
+          7.0,
+          7.0,
+          7.0,
+          9.0,
+          7.0
+        ],
+        "mean": 7.4,
+        "std": 0.894,
+        "cv_pct": 12.09,
+        "min": 7.0,
+        "max": 9.0
+      },
+      "competitive_landscape": {
+        "scores": [
+          6.0,
+          8.0,
+          8.0,
+          8.0,
+          6.0
+        ],
+        "mean": 7.2,
+        "std": 1.095,
+        "cv_pct": 15.21,
+        "min": 6.0,
+        "max": 8.0
+      },
+      "regulatory_risk": {
+        "scores": [
+          5.0,
+          2.0,
+          3.0,
+          5.0,
+          5.0
+        ],
+        "mean": 4.0,
+        "std": 1.414,
+        "cv_pct": 35.36,
+        "min": 2.0,
+        "max": 5.0
+      },
+      "macroeconomic_exposure": {
+        "scores": [
+          4.0,
+          6.0,
+          5.0,
+          6.0,
+          4.0
+        ],
+        "mean": 5.0,
+        "std": 1.0,
+        "cv_pct": 20.0,
+        "min": 4.0,
+        "max": 6.0
+      },
+      "overall_sentiment": {
+        "scores": [
+          8.0,
+          9.0,
+          9.0,
+          9.0,
+          9.0
+        ],
+        "mean": 8.8,
+        "std": 0.447,
+        "cv_pct": 5.08,
+        "min": 8.0,
+        "max": 9.0
+      }
+    },
+    "overall_consistency_score": 85.98
+  }
+}
